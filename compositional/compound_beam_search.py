@@ -381,10 +381,10 @@ def beam_search_functional_aware(
 
         if current_beam and len(current_beam) >= beam_limit and e_iou < minimum:
             break
-
+        
         candidate_formula = node[2]
 
-        # Memory Mechanism to avoid duplicates
+        # # Memory Mechanism to avoid duplicates
         if e_iou == recent_eiou:
             if candidate_formula in recent_nodes:
                 # Already visited. This could happen due to the history
@@ -446,6 +446,7 @@ def beam_search_functional_aware(
                         top_equivalent = False
                         top_discarded_node = None
                         
+                        heapq.heapify(discarded_nodes)
                         # Select the top discarded node that is not functionally equivalent to the current beam nodes
                         while discarded_nodes is not None and len(discarded_nodes) > 0 and top_discarded_node is None:
                             top_discarded_node = heapq.heappop(discarded_nodes)
@@ -525,6 +526,7 @@ def beam_search_functional_aware(
                     while top_equivalent:
                         top_equivalent = False
                         top_discarded_node = None
+                        heapq.heapify(discarded_nodes)
                         # Select the top discarded node that is not functionally equivalent to the current beam nodes
                         while discarded_nodes is not None and len(discarded_nodes) > 0 and top_discarded_node is None:
                             top_discarded_node = heapq.heappop(discarded_nodes)
@@ -571,7 +573,9 @@ def beam_search_functional_aware(
             current_beam_masks[node[2]] = masks_formula
         else:
             # Add the node to the discarded nodes list
-            heapq.heappush(discarded_nodes, (iou.item(), node[1], node[2], node[3]))
+            print("Discarded node")
+            discarded_nodes.append((iou.item(), node[1], node[2], node[3]))
+            #heapq.heappush(discarded_nodes, (iou.item(), node[1], node[2], node[3]))
     return [node for node in current_beam], visited_indices
 
 def explore_beam_frontier_compound(
@@ -668,7 +672,7 @@ def explore_beam_frontier_compound(
         # # Add nodes by combining current frontier with history
         history_candidates = history_beam.get(current_beam_length, [])
         beam_candidates.extend(history_candidates)
-        beam_candidates = list(set(beam_candidates))  # Remove duplicates
+        #beam_candidates = list(set(beam_candidates))  # Remove duplicates
         
         # Compute the estimation for the beam candidates
         estimated_nodes += len(beam_candidates)
