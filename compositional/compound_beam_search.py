@@ -146,8 +146,15 @@ def fail_check_beam_functional_equivalence(beam_masks, mask_formula):
 
 def extract_functional_equivalents(mask_formula, iou_formula, info_formulas):
     equivalent = []
+    test_formula = F.Or(F.And(F.Leaf(103), F.Not(F.Leaf(2))), F.Leaf(101))
     for label, (mask, iou) in info_formulas.items():
+        if label == test_formula:
+            print("Extracting functional equivalents for the test formula")
+            print(f"Candidate formula: {label}, candidate iou: {iou}, formula_iou: {iou_formula}")
         if iou == iou_formula:
+            if label == test_formula:
+                print(f"Overlap:{ metrics.iou(mask, mask_formula)}")
+
             # The only case where there could be logical equivalence
             if fail_check_functional_equivalence(mask, mask_formula):
                 equivalent.append(label)
