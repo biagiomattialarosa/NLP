@@ -554,6 +554,10 @@ def beam_search_functional_aware(
     equivalents_removed = {}
     recent_nodes = set()
     recent_eiou = -1
+
+    #OR((103 AND (NOT 2)), 101)
+    test_formula = F.Or(F.And(F.Leaf(103), F.Not(F.Leaf(2))), F.Leaf(101))
+
     while len(search_space) > 0:
         node = heapq.heappop(search_space)
         e_iou = -node[0]
@@ -607,12 +611,20 @@ def beam_search_functional_aware(
                 equivalent_node = (iou.item(), node[1], label_to_remove, None)
                 # Removal
                 current_beam.remove(equivalent_node) # From beam 
+                if label_to_remove == test_formula:
+                    print("Removing the test formula from the beam place 5")
+                    print(label_to_remove)
+                    print(current_beam_info)
                 del current_beam_info[label_to_remove] # From beam info
                 heapq.heapify(current_beam) # Reorder beam after removal
             
             for label_to_add, (iou_to_add, label_to_add, mask_to_add) in to_add.items():
                 # Addition
                 heapq.heappush(current_beam, (iou_to_add, node[1], label_to_add, None)) # To beam
+                if label_to_add == test_formula:
+                    print("Adding the test formula to the beam place 4")
+                    print(label_to_add)
+                    print(current_beam_info)
                 current_beam_info[label_to_add] = (mask_to_add, iou_to_add) # To beam info
 
             # Update minimum
@@ -638,12 +650,20 @@ def beam_search_functional_aware(
             #     print(f"*****************************")
             for label_to_remove  in to_remove:
                 equivalent_node = (iou.item(), node[1], label_to_remove, None)
+                if label_to_remove == test_formula:
+                    print("Removing the test formula from the beam place 1")
+                    print(label_to_remove)
+                    print(current_beam_info)
                 # Removal
                 current_beam.remove(equivalent_node) # From beam 
                 heapq.heapify(current_beam) # We need to heapify after removal
                 del current_beam_info[label_to_remove] # From beam info
             
             for label_to_add, (iou_to_add, label_to_add, mask_to_add) in to_add.items():
+                if label_to_add == test_formula:
+                    print("Adding the test formula to the beam place 2")
+                    print(label_to_add)
+                    print(current_beam_info)
                 # Addition
                 heapq.heappush(current_beam, (iou_to_add, node[1], label_to_add, None)) # To beam
                 current_beam_info[label_to_add] = (mask_to_add, iou_to_add) # To beam info
@@ -662,11 +682,19 @@ def beam_search_functional_aware(
                 #     print(f"*****************************")
 
                 for label_to_add, (iou_to_add, label_to_add, mask_to_add) in to_add_from_discarded.items():
+                    if label_to_add == test_formula:
+                        print("Adding the test formula from discarded nodes to fill the beam after removal place 3")
+                        print(label_to_add)
+                        print(current_beam_info)
                     heapq.heappush(current_beam, (iou_to_add, node[1], label_to_add, None)) # To beam
                     current_beam_info[label_to_add] = (mask_to_add, iou_to_add) # To beam info
 
             # Remove the minimum nodes until we are under the beam limit
             while len(current_beam) > beam_limit:
+                if current_beam[0][0] >= minimum:
+                    # We should not remove nodes that are better than the minimum
+                    raise ValueError(f"We should not remove nodes that are better than the minimum, but we have a node with iou {current_beam[0][0]} that is better than the minimum {minimum}")
+                    break
                 removed_node = heapq.heappop(current_beam)
                 removed_label = removed_node[2]
                 del current_beam_info[removed_label]
