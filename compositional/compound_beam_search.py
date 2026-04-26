@@ -146,15 +146,8 @@ def fail_check_beam_functional_equivalence(beam_masks, mask_formula):
 
 def extract_functional_equivalents(mask_formula, iou_formula, info_formulas):
     equivalent = []
-    test_formula = F.Or(F.And(F.Leaf(103), F.Not(F.Leaf(2))), F.Leaf(101))
     for label, (mask, iou) in info_formulas.items():
-        if label == test_formula:
-            print("Extracting functional equivalents for the test formula")
-            print(f"Candidate formula: {label}, candidate iou: {iou}, formula_iou: {iou_formula}")
         if iou == iou_formula:
-            if label == test_formula:
-                print(f"Overlap:{ metrics.iou(mask, mask_formula)}")
-
             # The only case where there could be logical equivalence
             if fail_check_functional_equivalence(mask, mask_formula):
                 equivalent.append(label)
@@ -450,7 +443,6 @@ def add_from_discarded_nodes(discarded_nodes, masks, beam_info, num_spots, devic
 
 
 def manage_logical_equivalence(candidate_label, candidate_mask, candidate_iou, concept_masks, formulas_info, equivalents_removed):
-    test_formula = F.Or(F.And(F.Leaf(103), F.Not(F.Leaf(2))), F.Leaf(101))
     assert isinstance(candidate_iou, float)
     device = candidate_mask.device
     relevant_info = formulas_info.copy()
@@ -464,10 +456,6 @@ def manage_logical_equivalence(candidate_label, candidate_mask, candidate_iou, c
                 )
                 relevant_info[add_equivalent] = (mask_add_equivalent, candidate_iou)
     equivalent_labels = extract_functional_equivalents(candidate_mask, candidate_iou, relevant_info)
-    if candidate_label == test_formula:
-        print("Candidate label is the test formula")
-        print(candidate_label)
-        print(equivalent_labels)
     to_remove = set()
     to_add = {}
     combinations = []
@@ -484,26 +472,14 @@ def manage_logical_equivalence(candidate_label, candidate_mask, candidate_iou, c
         # We need to understand the type
         type_1_or_2 = share_same_concepts(candidate_label, equivalent_label)
         if type_1_or_2:
-            if candidate_label == test_formula:
-                print("CASE type 1 or 2 equivalence: the candidate and the equivalent share the same concepts")
-                print(f"Candidate label: {candidate_label}, candidate iou: {candidate_iou}")
-                print(f"Equivalent label: {equivalent_label}, equivalent iou: {formulas_info[equivalent_label][1]}")
             #print("CASE type 1 or 2 equivalence: the candidate and the equivalent share the same concepts")
             #assert set(candidate_label.get_ops()) == set(equivalent_label.get_ops()), f"CASE functional equivalence but different ops: {candidate_label} and {equivalent_label}"
             # We can replace the equivalent node if it not verified by data and the candidate is verified by data   
             if not is_verified(equivalent_label, concept_masks, device=device) and is_verified(candidate_label, concept_masks, device=device):
-                if candidate_label == test_formula:
-                    print("The candidate label is verified but the equivalent label is not verified, we can replace the equivalent label with the candidate label")
-                    print(f"Candidate label: {candidate_label}, candidate iou: {candidate_iou}")
-                    print(f"Equivalent label: {equivalent_label}, equivalent iou: {formulas_info[equivalent_label][1]}")
                 # Replace the equivalent formula in the beam with the candidate formula that is verified by data
                 to_remove.add(equivalent_label)
                 to_add[candidate_label] = (candidate_iou, candidate_label, candidate_mask) # Note: this can happen multiple time but the candidate label is always the same
         else:
-            if candidate_label == test_formula:
-                print("CASE type 3 equivalence: the candidate and the equivalent do not share the same concepts")
-                print(f"Candidate label: {candidate_label}, candidate iou: {candidate_iou}")
-                print(f"Equivalent label: {equivalent_label}, equivalent iou: {formulas_info[equivalent_label][1]}")
             #print("CASE type 3 equivalence: the candidate and the equivalent do not share the same concepts")
             # In this case, we have different concepts and it means the current data do not support an unambiguous explanation at this length
             # Therefore, we should remove the formula from the beam and add it to the set of equivalent labels
@@ -578,10 +554,6 @@ def beam_search_functional_aware(
     equivalents_removed = {}
     recent_nodes = set()
     recent_eiou = -1
-
-    #OR((103 AND (NOT 2)), 101)
-    test_formula = F.Or(F.And(F.Leaf(103), F.Not(F.Leaf(2))), F.Leaf(101))
-
     while len(search_space) > 0:
         node = heapq.heappop(search_space)
         e_iou = -node[0]
@@ -635,20 +607,12 @@ def beam_search_functional_aware(
                 equivalent_node = (iou.item(), node[1], label_to_remove, None)
                 # Removal
                 current_beam.remove(equivalent_node) # From beam 
-                if label_to_remove == test_formula:
-                    print("Removing the test formula from the beam place 5")
-                    print(label_to_remove)
-                    print(current_beam_info)
                 del current_beam_info[label_to_remove] # From beam info
                 heapq.heapify(current_beam) # Reorder beam after removal
             
             for label_to_add, (iou_to_add, label_to_add, mask_to_add) in to_add.items():
                 # Addition
                 heapq.heappush(current_beam, (iou_to_add, node[1], label_to_add, None)) # To beam
-                if label_to_add == test_formula:
-                    print("Adding the test formula to the beam place 4")
-                    print(label_to_add)
-                    print(current_beam_info)
                 current_beam_info[label_to_add] = (mask_to_add, iou_to_add) # To beam info
 
             # Update minimum
@@ -674,21 +638,12 @@ def beam_search_functional_aware(
             #     print(f"*****************************")
             for label_to_remove  in to_remove:
                 equivalent_node = (iou.item(), node[1], label_to_remove, None)
-                if label_to_remove == test_formula:
-                    print("Removing the test formula from the beam place 1")
-                    print(label_to_remove)
-                    print(current_beam_info)
                 # Removal
                 current_beam.remove(equivalent_node) # From beam 
                 heapq.heapify(current_beam) # We need to heapify after removal
                 del current_beam_info[label_to_remove] # From beam info
             
             for label_to_add, (iou_to_add, label_to_add, mask_to_add) in to_add.items():
-                if label_to_add == test_formula:
-                    print("Adding the test formula to the beam place 2")
-                    print(label_to_add)
-                    print(current_beam_info)
-                    print()
                 # Addition
                 heapq.heappush(current_beam, (iou_to_add, node[1], label_to_add, None)) # To beam
                 current_beam_info[label_to_add] = (mask_to_add, iou_to_add) # To beam info
@@ -707,10 +662,6 @@ def beam_search_functional_aware(
                 #     print(f"*****************************")
 
                 for label_to_add, (iou_to_add, label_to_add, mask_to_add) in to_add_from_discarded.items():
-                    if label_to_add == test_formula:
-                        print("Adding the test formula from discarded nodes to fill the beam after removal place 3")
-                        print(label_to_add)
-                        print(current_beam_info)
                     heapq.heappush(current_beam, (iou_to_add, node[1], label_to_add, None)) # To beam
                     current_beam_info[label_to_add] = (mask_to_add, iou_to_add) # To beam info
 
