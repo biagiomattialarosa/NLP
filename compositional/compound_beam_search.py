@@ -691,10 +691,10 @@ def beam_search_functional_aware(
 
             # Remove the minimum nodes until we are under the beam limit
             while len(current_beam) > beam_limit:
-                if current_beam[0][0] >= minimum:
-                    # We should not remove nodes that are better than the minimum
-                    raise ValueError(f"We should not remove nodes that are better than the minimum, but we have a node with iou {current_beam[0][0]} that is better than the minimum {minimum}")
-                    break
+                # if current_beam[0][0] > minimum:
+                #     # We should not remove nodes that are better than the minimum
+                #     raise ValueError(f"We should not remove nodes that are better than the minimum, but we have a node with iou {current_beam[0][0]} that is better than the minimum {minimum}")
+                #     break
                 removed_node = heapq.heappop(current_beam)
                 removed_label = removed_node[2]
                 del current_beam_info[removed_label]
