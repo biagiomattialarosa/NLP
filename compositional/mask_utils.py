@@ -485,7 +485,7 @@ def parse_mask_by_type(mask):
     else:
         return mask
     
-def get_formula_mask(f, masks, optional_masks=None):
+def get_formula_mask(f, masks, optional_masks=None, device=torch.device("cpu")):
     """
     Function to return a mask for a given formula.
     Args:
@@ -497,22 +497,22 @@ def get_formula_mask(f, masks, optional_masks=None):
     """
     if optional_masks is not None and f in optional_masks.keys():
         mask = optional_masks[f]
-        return parse_mask_by_type(mask)
+        return parse_mask_by_type(mask).to(device)
     if isinstance(f, F.Leaf):
         mask = masks[f.val]
-        return parse_mask_by_type(mask)
+        return parse_mask_by_type(mask).to(device)
     elif isinstance(f, F.Or):
-        masks_l = get_formula_mask(f.left, masks, optional_masks)
-        masks_r = get_formula_mask(f.right, masks, optional_masks)
+        masks_l = get_formula_mask(f.left, masks, optional_masks, device)
+        masks_r = get_formula_mask(f.right, masks, optional_masks, device)
         return masks_l | masks_r
     elif isinstance(f, F.And):
-        masks_l = get_formula_mask(f.left, masks, optional_masks)
-        masks_r = get_formula_mask(f.right, masks, optional_masks)
+        masks_l = get_formula_mask(f.left, masks, optional_masks, device)
+        masks_r = get_formula_mask(f.right, masks, optional_masks, device)
         return masks_l & masks_r
     elif isinstance(f, F.Not):
-        return ~get_formula_mask(f.val, masks, optional_masks)
+        return ~get_formula_mask(f.val, masks, optional_masks, device)
     elif isinstance(f, int):
         mask = masks[f]
-        return parse_mask_by_type(mask)
+        return parse_mask_by_type(mask).to(device)
     else:
         raise ValueError(f"Unknown formula type {type(f)}")

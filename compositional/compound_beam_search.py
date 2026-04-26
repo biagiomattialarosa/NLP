@@ -2,6 +2,8 @@ from collections import Counter
 import heapq
 import queue as Q
 
+import torch
+
 from . import formula as F
 from compositional import mask_utils, metrics, search_utils
 
@@ -316,7 +318,7 @@ def update_history(history_beam, new_nodes, current_length, max_length):
             history_beam[len_new_node] = history_beam.get(len_new_node, []) + [new_node]
     return history_beam
 
-def is_verified(formula, masks):
+def is_verified(formula, masks, device=torch.device("cpu")):
     compounds = get_or_compounds(formula)
     verified = True
     for compound in compounds:
@@ -325,9 +327,9 @@ def is_verified(formula, masks):
             right_compounds = get_or_compounds(compound.right)
             verified = True
             for left in left_compounds:
-                left_mask = mask_utils.get_formula_mask(left, masks)
+                left_mask = mask_utils.get_formula_mask(left, masks, device=device)
                 for right in right_compounds:
-                    right_mask = mask_utils.get_formula_mask(right.val, masks)
+                    right_mask = mask_utils.get_formula_mask(right.val, masks, device=device)
                     iou = metrics.iou(left_mask, right_mask)
                     if iou == 0.0:
                         # This means that the AND NOT doesn't modify this component so it cannot be verified by data
@@ -404,11 +406,11 @@ def add_from_discarded_nodes(discarded_nodes, masks, beam_info, num_spots, devic
 
                     if is_top_verified is None:
                         # The first time we compute it
-                        is_top_verified = is_verified(top_discarded_label, masks)
+                        is_top_verified = is_verified(top_discarded_label, masks, device=device)
                     
                     if not is_top_verified:
                         # We can check if the equivalent label is verified by data 
-                        if is_verified(equivalent_label, masks):
+                        if is_verified(equivalent_label, masks, device=device):
                             # We discard the current top candidate but we add back to the discarded nodes the equivalent label 
                             heapq.heappush(discarded_nodes, (neg_iou, 'INDIVIDUAL', equivalent_label, None))
                             safe_to_add = False
@@ -438,6 +440,7 @@ def add_from_discarded_nodes(discarded_nodes, masks, beam_info, num_spots, devic
 
 
 def manage_logical_equivalence(candidate_label, candidate_mask, candidate_iou, concept_masks, formulas_info):
+    device = candidate_mask.device
     equivalent_labels = extract_functional_equivalents(candidate_mask, candidate_iou, formulas_info)
     to_remove = set()
     to_add = {}
@@ -458,7 +461,7 @@ def manage_logical_equivalence(candidate_label, candidate_mask, candidate_iou, c
             #print("CASE type 1 or 2 equivalence: the candidate and the equivalent share the same concepts")
             #assert set(candidate_label.get_ops()) == set(equivalent_label.get_ops()), f"CASE functional equivalence but different ops: {candidate_label} and {equivalent_label}"
             # We can replace the equivalent node if it not verified by data and the candidate is verified by data   
-            if not is_verified(equivalent_label, concept_masks) and is_verified(candidate_label, concept_masks):
+            if not is_verified(equivalent_label, concept_masks, device=device) and is_verified(candidate_label, concept_masks, device=device):
                 # Replace the equivalent formula in the beam with the candidate formula that is verified by data
                 to_remove.add(equivalent_label)
                 to_add[candidate_label] = (candidate_iou, candidate_label, candidate_mask) # Note: this can happen multiple time but the candidate label is always the same
@@ -559,8 +562,8 @@ def beam_search_functional_aware(
             continue
 
         masks_formula = mask_utils.get_formula_mask(
-            candidate_formula, masks, beam_masks
-        ).to(bitmaps.device)
+            candidate_formula, masks, beam_masks, bitmaps.device
+        )
         iou = metrics.iou(
             masks_formula, bitmaps
         )
