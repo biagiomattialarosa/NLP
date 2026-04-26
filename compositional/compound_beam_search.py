@@ -421,6 +421,9 @@ def add_from_discarded_nodes(discarded_nodes, masks, beam_info, num_spots, devic
                         # In this case, the equivalent label comes from the previous beam.
                         # If the current formula is verified, we can add it to the beam because it is more specific than the previous one and in general better
                         safe_to_add = True
+                    elif len(equivalent_label) > len(top_discarded_label):
+                        safe_to_add = False
+                        heapq.heappush(discarded_nodes, (neg_iou, 'INDIVIDUAL', equivalent_label, None))
                     else:
                         # In this case, we have different concepts and it means the current data do not support an unambiguous explanation at this length
                         # Therefore, the top discarded node is not safe to add 
@@ -439,9 +442,20 @@ def add_from_discarded_nodes(discarded_nodes, masks, beam_info, num_spots, devic
     return to_add, discarded_nodes, combinations
 
 
-def manage_logical_equivalence(candidate_label, candidate_mask, candidate_iou, concept_masks, formulas_info):
+def manage_logical_equivalence(candidate_label, candidate_mask, candidate_iou, concept_masks, formulas_info, equivalents_removed):
+    assert isinstance(candidate_iou, float)
     device = candidate_mask.device
-    equivalent_labels = extract_functional_equivalents(candidate_mask, candidate_iou, formulas_info)
+    relevant_info = formulas_info.copy()
+    # Add the equivalent formulas that we have removed from the beam with the same iou
+    if candidate_iou in equivalents_removed:
+        additional_equivalents = equivalents_removed[candidate_iou]
+        for add_equivalent in additional_equivalents:
+            if add_equivalent not in relevant_info:
+                mask_add_equivalent = mask_utils.get_formula_mask(
+                    add_equivalent, concept_masks, device=device
+                )
+                relevant_info[add_equivalent] = (mask_add_equivalent, candidate_iou)
+    equivalent_labels = extract_functional_equivalents(candidate_mask, candidate_iou, relevant_info)
     to_remove = set()
     to_add = {}
     combinations = []
@@ -477,6 +491,9 @@ def manage_logical_equivalence(candidate_label, candidate_mask, candidate_iou, c
             else:
                 # We try to combine them and to suggest them to the next length, if any
                 combinations.extend(combine_formulas(candidate_label, equivalent_label))
+    if len(to_remove) > 0:
+        # Remove from to remove the labels already removed before
+        to_remove = set(to_remove) - set(equivalents_removed.get(candidate_iou, []))
     return to_add, to_remove, combinations
 
 
@@ -534,6 +551,7 @@ def beam_search_functional_aware(
             minimum = current_beam[0][0]
     
     minimum = current_beam[0][0] if current_beam else 0
+    equivalents_removed = {}
     recent_nodes = set()
     recent_eiou = -1
     while len(search_space) > 0:
@@ -571,8 +589,13 @@ def beam_search_functional_aware(
         node = (iou.item(), node[1], node[2], None)
 
         if current_beam is None or len(current_beam) < beam_limit:
-            to_add, to_remove, new_combinations = manage_logical_equivalence(candidate_formula, masks_formula, iou.item(), masks, current_beam_info)
+            to_add, to_remove, new_combinations = manage_logical_equivalence(candidate_formula, masks_formula, iou.item(), masks, current_beam_info, equivalents_removed)
             beam_combinations.extend(new_combinations)
+            if  candidate_formula not in to_add and len(to_remove) > 0:
+                # We keep track of these cases to avoid type 3 cases sneaking into the beam because there are no equivalent labels
+                if iou.item() not in equivalents_removed:
+                    equivalents_removed[iou.item()] = []
+                equivalents_removed[iou.item()].append(candidate_formula)
             # if len(to_add) > 1 or len(to_remove) > 0:
             #     print("The beam is not full yet")
             #     print(f"To add: {[label for label in to_add.keys()]}")
@@ -599,8 +622,13 @@ def beam_search_functional_aware(
             #assert len(discarded_nodes) == 0, f"There should be no discarded nodes at this stage, but we have {len(discarded_nodes)} discarded nodes."
 
         elif iou > minimum:
-            to_add, to_remove, new_combinations = manage_logical_equivalence(candidate_formula, masks_formula, iou.item(), masks, current_beam_info)
+            to_add, to_remove, new_combinations = manage_logical_equivalence(candidate_formula, masks_formula, iou.item(), masks, current_beam_info, equivalents_removed)
             beam_combinations.extend(new_combinations)
+            if candidate_formula not in to_add and len(to_remove) > 0:
+                # We keep track of these cases to avoid type 3 cases sneaking into the beam because there are no equivalent labels
+                if iou.item() not in equivalents_removed:
+                    equivalents_removed[iou.item()] = []
+                equivalents_removed[iou.item()].append(candidate_formula)
             # if len(to_add) > 1 or len(to_remove) > 0:
             #     print("The beam is full")
             #     print(f"To add: {[label for label in to_add.keys()]}")
