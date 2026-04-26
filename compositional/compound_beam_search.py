@@ -443,6 +443,7 @@ def add_from_discarded_nodes(discarded_nodes, masks, beam_info, num_spots, devic
 
 
 def manage_logical_equivalence(candidate_label, candidate_mask, candidate_iou, concept_masks, formulas_info, equivalents_removed):
+    test_formula = F.Or(F.And(F.Leaf(103), F.Not(F.Leaf(2))), F.Leaf(101))
     assert isinstance(candidate_iou, float)
     device = candidate_mask.device
     relevant_info = formulas_info.copy()
@@ -456,6 +457,10 @@ def manage_logical_equivalence(candidate_label, candidate_mask, candidate_iou, c
                 )
                 relevant_info[add_equivalent] = (mask_add_equivalent, candidate_iou)
     equivalent_labels = extract_functional_equivalents(candidate_mask, candidate_iou, relevant_info)
+    if candidate_label == test_formula:
+        print("Candidate label is the test formula")
+        print(candidate_label)
+        print(equivalent_labels)
     to_remove = set()
     to_add = {}
     combinations = []
@@ -472,14 +477,26 @@ def manage_logical_equivalence(candidate_label, candidate_mask, candidate_iou, c
         # We need to understand the type
         type_1_or_2 = share_same_concepts(candidate_label, equivalent_label)
         if type_1_or_2:
+            if candidate_label == test_formula:
+                print("CASE type 1 or 2 equivalence: the candidate and the equivalent share the same concepts")
+                print(f"Candidate label: {candidate_label}, candidate iou: {candidate_iou}")
+                print(f"Equivalent label: {equivalent_label}, equivalent iou: {formulas_info[equivalent_label][1]}")
             #print("CASE type 1 or 2 equivalence: the candidate and the equivalent share the same concepts")
             #assert set(candidate_label.get_ops()) == set(equivalent_label.get_ops()), f"CASE functional equivalence but different ops: {candidate_label} and {equivalent_label}"
             # We can replace the equivalent node if it not verified by data and the candidate is verified by data   
             if not is_verified(equivalent_label, concept_masks, device=device) and is_verified(candidate_label, concept_masks, device=device):
+                if candidate_label == test_formula:
+                    print("The candidate label is verified but the equivalent label is not verified, we can replace the equivalent label with the candidate label")
+                    print(f"Candidate label: {candidate_label}, candidate iou: {candidate_iou}")
+                    print(f"Equivalent label: {equivalent_label}, equivalent iou: {formulas_info[equivalent_label][1]}")
                 # Replace the equivalent formula in the beam with the candidate formula that is verified by data
                 to_remove.add(equivalent_label)
                 to_add[candidate_label] = (candidate_iou, candidate_label, candidate_mask) # Note: this can happen multiple time but the candidate label is always the same
         else:
+            if candidate_label == test_formula:
+                print("CASE type 3 equivalence: the candidate and the equivalent do not share the same concepts")
+                print(f"Candidate label: {candidate_label}, candidate iou: {candidate_iou}")
+                print(f"Equivalent label: {equivalent_label}, equivalent iou: {formulas_info[equivalent_label][1]}")
             #print("CASE type 3 equivalence: the candidate and the equivalent do not share the same concepts")
             # In this case, we have different concepts and it means the current data do not support an unambiguous explanation at this length
             # Therefore, we should remove the formula from the beam and add it to the set of equivalent labels
@@ -664,6 +681,7 @@ def beam_search_functional_aware(
                     print("Adding the test formula to the beam place 2")
                     print(label_to_add)
                     print(current_beam_info)
+                    print()
                 # Addition
                 heapq.heappush(current_beam, (iou_to_add, node[1], label_to_add, None)) # To beam
                 current_beam_info[label_to_add] = (mask_to_add, iou_to_add) # To beam info
