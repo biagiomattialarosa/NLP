@@ -25,55 +25,86 @@ class F:
         )
     pass
 
+def compute_hash_value(f: F):
+    if isinstance(f, Leaf):
+        return ("LEAF", f.val)
 
-def compute_hash_value(formula: F) -> float:
+    if isinstance(f, Not):
+        return ("NOT", compute_hash_value(f.val))
+
+    if isinstance(f, Or):
+        return ("OR", tuple(sorted(_flatten_same_op(f, Or))))
+
+    if isinstance(f, And):
+        return ("AND", tuple(sorted(_flatten_same_op(f, And))))
+
+    raise TypeError(f"Unsupported formula type: {type(f)}")
+
+
+def _flatten_same_op(f: F, op_type):
     """
-    Function to compute the hash value of a given formula.
-    This function is used to avoid computation of equivalent formulas,
-    thus, two equivalent formulas will have the same hash value.
+    Flatten associative chains of the same operator.
+
+    Example:
+    (1 OR (2 OR 3)) and ((1 OR 2) OR 3)
+    become the same canonical tuple.
     """
-    if isinstance(formula, Leaf):
-        return round(formula.val / 2000, 4)
-    elif isinstance(formula, Not):
-        return round(1 - compute_hash_value(formula.val), 4)
-    elif isinstance(formula, Or):
-        if len(set(formula.get_ops())) == 1:
-            values = sorted(formula.get_vals())
-            hash_sum = 0
-            prod = 1
-            for v in values:
-                leaf_value = compute_hash_value(Leaf(v))
-                hash_sum += leaf_value
-                prod *= leaf_value
-            return round(hash_sum - prod, 4)   
-        else:
-            return round(
-                compute_hash_value(formula.left)
-                + compute_hash_value(formula.right)
-                - (
-                    (
-                        compute_hash_value(formula.right)
-                        * compute_hash_value(formula.left)
-                    )
-                ),
-                4,
-            )
-    elif isinstance(formula, And):
-        if len(set(formula.get_ops())) == 1:
-            values = sorted(formula.get_vals())
-            hash_product = 1
-            for v in values:
-                leaf_value = compute_hash_value(Leaf(v))
-                hash_product *= leaf_value                
-            return round(hash_product, 4)
-        else:
-            return round(
-                compute_hash_value(
-                    formula.left)
-                * compute_hash_value(
-                    formula.right), 4
-            )
-    return None
+    if isinstance(f, op_type):
+        return (
+            _flatten_same_op(f.left, op_type)
+            + _flatten_same_op(f.right, op_type)
+        )
+
+    return (compute_hash_value(f),)
+
+# def compute_hash_value(formula: F) -> float:
+#     """
+#     Function to compute the hash value of a given formula.
+#     This function is used to avoid computation of equivalent formulas,
+#     thus, two equivalent formulas will have the same hash value.
+#     """
+#     if isinstance(formula, Leaf):
+#         return round(formula.val / 2000, 4)
+#     elif isinstance(formula, Not):
+#         return round(1 - compute_hash_value(formula.val), 4)
+#     elif isinstance(formula, Or):
+#         if len(set(formula.get_ops())) == 1:
+#             values = sorted(formula.get_vals())
+#             hash_sum = 0
+#             prod = 1
+#             for v in values:
+#                 leaf_value = compute_hash_value(Leaf(v))
+#                 hash_sum += leaf_value
+#                 prod *= leaf_value
+#             return round(hash_sum - prod, 4)   
+#         else:
+#             return round(
+#                 compute_hash_value(formula.left)
+#                 + compute_hash_value(formula.right)
+#                 - (
+#                     (
+#                         compute_hash_value(formula.right)
+#                         * compute_hash_value(formula.left)
+#                     )
+#                 ),
+#                 4,
+#             )
+#     elif isinstance(formula, And):
+#         if len(set(formula.get_ops())) == 1:
+#             values = sorted(formula.get_vals())
+#             hash_product = 1
+#             for v in values:
+#                 leaf_value = compute_hash_value(Leaf(v))
+#                 hash_product *= leaf_value                
+#             return round(hash_product, 4)
+#         else:
+#             return round(
+#                 compute_hash_value(
+#                     formula.left)
+#                 * compute_hash_value(
+#                     formula.right), 4
+#             )
+#     return None
 
 
 class Leaf(F):
@@ -125,36 +156,9 @@ class Leaf(F):
 
     # we redefine the equality function
     def __eq__(self, other):
-        if isinstance(other, Not):
-            if other.val == self.val:
-                return False
-            else:
-                return other.val.val == self
-        elif isinstance(other, Leaf):
-            return other.val == self.val
-        elif isinstance(other, BinaryNode):
-            # Absorption
-            if other.op == "OR" or other.op == "AND":
-                if isinstance(other.left, Leaf):
-                    leaf_term = other.left
-                    other_term = other.right
-                elif isinstance(other.right, Leaf):
-                    leaf_term = other.right
-                    other_term = other.left
-                else:
-                    return False  # no leaf term
-                if leaf_term != self or not isinstance(other_term, BinaryNode):
-                    return False
-                if other_term.op != other.op and other_term.op != "NOT":
-                    if other_term.left == self or other_term.right == self:
-                        return True
-                    else:
-                        return False
-                else:
-                    return False
+        if not isinstance(other, Leaf):
             return False
-        else:
-            return False
+        return self.val == other.val
 
     def __lt__(self, other):
         if isinstance(other, Leaf):
@@ -282,74 +286,9 @@ class BinaryNode(Node):
         return vals
 
     def __eq__(self, other):
-        if isinstance(other, BinaryNode):
-            right_vals = sorted(self.right.get_vals())
-            left_vals = sorted(self.left.get_vals())
-            other_right_vals = sorted(other.right.get_vals())
-            other_left_vals = sorted(other.left.get_vals())
-            right_ops = sorted(self.right.get_ops())
-            left_ops = sorted(self.left.get_ops())
-
-            other_right_ops = sorted(other.right.get_ops())
-            other_left_ops = sorted(other.left.get_ops())
-            if (
-                (self.op == other.op)
-                and (right_vals == other_right_vals)
-                and (left_vals == other_left_vals)
-                and (right_ops == other_right_ops)
-                and (left_ops == other_left_ops)
-            ):
-                return True
-            elif (
-                (self.op == other.op)
-                and (right_vals == other_left_vals)
-                and (left_vals == other_right_vals)
-                and (right_ops == other_left_ops)
-                and (left_ops == other_right_ops)
-            ):
-                return True
-            all_vals = sorted(right_vals + left_vals)
-            other_all_vals = sorted(other_right_vals + other_left_vals)
-            all_ops = sorted(right_ops + left_ops)
-            other_all_ops = sorted(other_right_ops + other_left_ops)
-            if (
-                self.op == other.op
-                and all_vals == other_all_vals
-                and all_ops == other_all_ops
-            ):
-                return True
-
-        elif isinstance(other, Not) and isinstance(other.val, BinaryNode):
-            # De Morgan's law
-            if (self.op == "OR" and other.val.op == "AND") or (
-                self.op == "AND" and other.val.op == "OR"
-            ):
-                if other.val.left == self.left.val:
-                    return other.val.right == self.right.val
-                elif other.val.left == self.right.val:
-                    return other.val.right == self.left.val
-                else:
-                    return False
-
-        elif isinstance(other, Leaf) and isinstance(self, BinaryNode):
-            # Absorption
-            if self.op == "OR" or self.op == "AND":
-                if isinstance(self.left, Leaf):
-                    leaf_term = self.left
-                    other_term = self.right
-                elif isinstance(self.right, Leaf):
-                    leaf_term = self.right
-                    other_term = self.left
-                else:
-                    return False
-                if leaf_term != other or not isinstance(
-                    other_term, BinaryNode
-                ):
-                    return False
-                if other_term.op != self.op and other_term.op != "NOT":
-                    if other_term.left == other or other_term.right == other:
-                        return True
-        return False
+        raise NotImplementedError(
+            "This method should be implemented in the subclasses."
+        )
     
     def tree_path(self):
         return [self] + self.left.tree_path() + self.right.tree_path()
@@ -370,27 +309,10 @@ class Not(UnaryNode):
         return hash(compute_hash_value(self))
 
     def __eq__(self, other):
+        if not isinstance(other, Not):
+            return False
         if isinstance(other, Not):
             return self.val == other.val
-        elif isinstance(self.val, Not):
-            return self.val.val == other
-        elif isinstance(other, Leaf):
-            return self.val == other.val
-        elif isinstance(other, BinaryNode) and isinstance(
-            self.val, BinaryNode
-        ):
-            # De Morgan's law
-            if (other.op == "OR" and self.val.op == "AND") or (
-                other.op == "AND" and self.val.op == "OR"
-            ):
-                if self.val.left == other.left.val:
-                    return self.val.right == other.right.val
-                elif self.val.left == other.right.val:
-                    return self.val.right == other.left.val
-                else:
-                    return False
-        else:
-            return False
 
     def get_ops(self):
         """ Function to return the operators in a formula. """
@@ -420,6 +342,30 @@ class Or(BinaryNode):
     def __hash__(self):
         return hash(compute_hash_value(self))
     
+    def __eq__(self, other):
+        if not isinstance(other, Or):
+            return False
+        
+        # Case mono operator
+        self_ops = self.get_ops()
+        other_ops = other.get_ops()
+        if len(set(self_ops)) == 1 and len(set(other_ops)) == 1:
+            # In this case we can sort the values and check if they are equal
+            self_vals = sorted(self.get_vals())
+            other_vals = sorted(other.get_vals())
+            if self_vals == other_vals:
+                return True
+            else:
+                return False
+        
+        # Non trivial casaes
+        if self.left == other.left and self.right == other.right:
+            return True
+        elif self.left == other.right and self.right == other.left:
+            return True
+        else:
+            return False
+    
     def flip_atoms(self):
         return Or(self.right, self.left)
 
@@ -436,6 +382,7 @@ class And(BinaryNode):
     op = "AND"
 
     def __init__(self, left, right):
+        assert not isinstance(left, Not), "NOT terms must appear on the right side of AND"
         super().__init__(left, right)
         self.op = "AND"
 
@@ -455,6 +402,43 @@ class And(BinaryNode):
             return False
         else:
             return True
+        
+    def __eq__(self, other):
+        if not isinstance(other, And):
+            return False
+        
+        # Case mono operator
+        self_ops = self.get_ops()
+        other_ops = other.get_ops()
+        if len(set(self_ops)) == 1 and len(set(other_ops)) == 1:
+            # In this case we can sort the values and check if they are equal
+            self_vals = sorted(self.get_vals())
+            other_vals = sorted(other.get_vals())
+            if self_vals == other_vals:
+                return True
+            else:
+                return False
+
+        # Non trivial casaes
+        self_is_not = isinstance(self.right, Not)
+        other_is_not = isinstance(other.right, Not)
+        if self_is_not and other_is_not:
+            # Both are not
+            if self.left == other.left and self.right.val == other.right.val:
+                return True
+            else:
+                return False
+        if not self_is_not and not other_is_not:
+            # Both are and
+            if self.left == other.left and self.right == other.right:
+                return True
+            elif self.left == other.right and self.right == other.left:
+                return True
+            else:
+                return False
+        else:
+            # Mixed case, one is not and the other is and
+            return False
     
 
 
