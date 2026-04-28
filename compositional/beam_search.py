@@ -55,7 +55,8 @@ def perform_exhaustive_heuristic_search(
     beam_variant=None,
     constraints=None,
     counter_variant=False,
-    diff_threshold=0.1
+    diff_threshold=0.1,
+    block_type_3=True,
 ):
     """Compute the heuristic score for each concept in the candidate_concepts
     list for the given bitmaps.
@@ -123,7 +124,8 @@ def perform_exhaustive_heuristic_search(
                         beam_size=beam_size,
                         length=length,
                         labels=labels,
-                        constraints=constraints
+                        constraints=constraints,
+                        block_type_3=block_type_3
         )
     elif beam_variant == 'baseline':
         best_label, best_iou, tot_visited, tot_expanded, tot_estimated = baseline_explore_beam_frontier(
@@ -211,7 +213,7 @@ def beam_search(
             masks_formula, bitmaps
         )
         visited_indices += 1
-        node = (iou.item(), node[1], node[2], node[3])
+        node = (iou, node[1], node[2], node[3])
 
         if not current_beam.full():
             current_beam.put(node)
@@ -292,7 +294,6 @@ def baseline_explore_beam_frontier(
             # Expand only nodes that were not expanded before
             if len(node[2]) == index_loop:
                 # Expand the node to get the next frontier
-                assert constraints is None
                 next_frontier = beam_expand_node(node, candidate_labels=candidate_labels, non_zero_labels=non_iou_labels, max_length=length, constraints=constraints)
                 expanded_nodes += 1
                 beam_candidates.extend(next_frontier)
@@ -323,12 +324,12 @@ def baseline_explore_beam_frontier(
                 beam.update({(node[0], 'INDIVIDUAL', node[2], str(node[2])): node[0]})
         beam = dict(Counter(beam).most_common(beam_size))
         beam_masks, (heuristic_info, label_mapping) = search_utils.get_beam_info(beam.keys(), masks, beam_masks, heuristic_info, leaf_mapping, bitmaps, length)
-        print("Next beam")
-        for (_, _, value, _), iou in beam.items():
-            label_mask = utils.sparse_to_torch(mask_utils.get_formula_mask(
-                value, masks
-            ))
-            print(f"Concept {value}: {F.get_formula_str(value, labels)}-  Mask Sum {label_mask.sum().item()}, Bitmaps: {bitmaps.sum().item()} IoU {iou}")
+        # print("Next beam")
+        # for (_, _, value, _), iou in beam.items():
+        #     label_mask = utils.sparse_to_torch(mask_utils.get_formula_mask(
+        #         value, masks
+        #     ))
+        #     print(f"Concept {value}: {F.get_formula_str(value, labels)}-  Mask Sum {label_mask.sum().item()}, Bitmaps: {bitmaps.sum().item()} IoU {iou}")
     best_node, best_iou = Counter(beam).most_common(1)[0]
     best_label = best_node[2]
     return best_label, best_iou, total_visited, expanded_nodes, estimated_nodes

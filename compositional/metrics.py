@@ -33,7 +33,7 @@ def iou(vector1, vector2):
     intersection = torch.count_nonzero(vector1 & vector2)
     v1_size = compute_hits(vector1)
     v2_size = compute_hits(vector2)
-    score = intersection / max(v1_size + v2_size - intersection, C.EPSILON)
+    score = intersection.item() / max(v1_size + v2_size - intersection, C.EPSILON).item()
     return score
 
 def counter_iou(*, label_mask, bitmaps, counter_bitmaps):
@@ -78,7 +78,7 @@ def weighted_iou(segmentations, bitmaps, weights):
     #weighted_segmentations = (segmentations * weights).sum()
     weighted_bitmaps = (bitmaps * weights).sum()
 
-    score = weighted_intersection / max(segmentations.sum() + weighted_bitmaps - weighted_intersection, C.EPSILON)
+    score = weighted_intersection.item() / max(segmentations.sum() + weighted_bitmaps - weighted_intersection, C.EPSILON).item()
     return score
 
 
@@ -95,7 +95,7 @@ def sample_iou(vector1, vector2):
     intersection = torch.count_nonzero(vector1 & vector2, 1)
     v1_size = torch.count_nonzero(vector1, 1)
     v2_size = torch.count_nonzero(vector2, 1)
-    score = intersection / (v1_size + v2_size - intersection + C.EPSILON)
+    score = intersection.item() / (v1_size + v2_size - intersection + C.EPSILON).item()
     return score
 
 
@@ -112,12 +112,12 @@ def activations_coverage(activations, segmentations):
     """
     return torch.count_nonzero(
         activations & segmentations
-    ) / torch.count_nonzero(activations)
+    ).item() / torch.count_nonzero(activations).item()
 
 def explanation_coverage(activations, segmentations):
     return get_num_nonzerosamples(
-        activations & segmentations) / (
-            activations.sum(1) > 0).sum()
+        activations & segmentations).item() / (
+            activations.sum(1) > 0).sum().item()
     
 
 def detection_accuracy(activations, segmentations):
@@ -133,7 +133,7 @@ def detection_accuracy(activations, segmentations):
     """
     return torch.count_nonzero(
         activations & segmentations
-    ) / torch.count_nonzero(segmentations)
+    ).item() / torch.count_nonzero(segmentations).item()
 
 
 def samples_coverage(activations, segmentations):
@@ -151,7 +151,7 @@ def samples_coverage(activations, segmentations):
         torch.sum(activations & segmentations, 1, dtype=torch.int32) > 0
     )
     segmentation_in = torch.sum(segmentations, 1, dtype=torch.int32) > 0
-    return torch.sum(samples_overlap) / torch.sum(segmentation_in)
+    return torch.sum(samples_overlap).item() / torch.sum(segmentation_in).item()
 
 
 def avg_mask_size(mask):
@@ -290,7 +290,7 @@ def compute_metrics(metrics, label, masks, bitmaps):
             metric_function = diff_adv_iou
         else:
             raise ValueError(f"Unknown metric {metric}")
-        metric_value = metric_function(label_mask, bitmaps).item()
+        metric_value = metric_function(label_mask, bitmaps)
         dict_results[metric] = metric_value
     return dict_results
 

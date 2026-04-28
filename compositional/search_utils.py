@@ -15,7 +15,7 @@ def analyze_final_node(label_node, masks, bitmaps):
             label_node, masks
         )).to(bitmaps.device)
     # Compute the exact IoU for the label node
-    iou = metrics.iou(label_mask, bitmaps).item()
+    iou = metrics.iou(label_mask, bitmaps)
     return iou
 
 

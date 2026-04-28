@@ -57,54 +57,6 @@ def _flatten_same_op(f: F, op_type):
 
     return (compute_hash_value(f),)
 
-# def compute_hash_value(formula: F) -> float:
-#     """
-#     Function to compute the hash value of a given formula.
-#     This function is used to avoid computation of equivalent formulas,
-#     thus, two equivalent formulas will have the same hash value.
-#     """
-#     if isinstance(formula, Leaf):
-#         return round(formula.val / 2000, 4)
-#     elif isinstance(formula, Not):
-#         return round(1 - compute_hash_value(formula.val), 4)
-#     elif isinstance(formula, Or):
-#         if len(set(formula.get_ops())) == 1:
-#             values = sorted(formula.get_vals())
-#             hash_sum = 0
-#             prod = 1
-#             for v in values:
-#                 leaf_value = compute_hash_value(Leaf(v))
-#                 hash_sum += leaf_value
-#                 prod *= leaf_value
-#             return round(hash_sum - prod, 4)   
-#         else:
-#             return round(
-#                 compute_hash_value(formula.left)
-#                 + compute_hash_value(formula.right)
-#                 - (
-#                     (
-#                         compute_hash_value(formula.right)
-#                         * compute_hash_value(formula.left)
-#                     )
-#                 ),
-#                 4,
-#             )
-#     elif isinstance(formula, And):
-#         if len(set(formula.get_ops())) == 1:
-#             values = sorted(formula.get_vals())
-#             hash_product = 1
-#             for v in values:
-#                 leaf_value = compute_hash_value(Leaf(v))
-#                 hash_product *= leaf_value                
-#             return round(hash_product, 4)
-#         else:
-#             return round(
-#                 compute_hash_value(
-#                     formula.left)
-#                 * compute_hash_value(
-#                     formula.right), 4
-#             )
-#     return None
 
 
 class Leaf(F):
