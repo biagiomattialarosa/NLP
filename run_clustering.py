@@ -23,8 +23,6 @@ absl.flags.DEFINE_string("interpolation_mode", "bilinear", "interpolation mode t
 
 absl.flags.DEFINE_boolean("counter_variant", False, "Whether to use the counter variant of the heuristic")
 absl.flags.DEFINE_float("diff_threshold", 0.1, "threshold for the admissibility constraint based on the diff between IoU and counter IoU")
-absl.flags.DEFINE_string("neighbors_type", None, "Type of neighbors to use for the beam search [old, baseline, none]")
-absl.flags.DEFINE_list("features", ['tokens', 'tags', 'overlap'], "Features to use for the beam search, separated by comma. Options: concepts, neighbors")
 FLAGS = absl.flags.FLAGS
 
 
@@ -104,7 +102,10 @@ def main(argv):
     #selected_units = [106]
 
     #selected_units = [91, 92, 394, 225, 285, 30, 39, 41, 45, 56, 70, 87, 94, 100, 109, 112, 117, 141, 153, 172, 184, 234, 239, 263, 280, 283, 323, 362]
-
+    
+    #selected_units = [215]
+    
+    #selected_units = selected_units[33:]
     
     for segmentor_name in list(FLAGS.segmentors):
         # Set seed
@@ -176,6 +177,7 @@ def main(argv):
         config_compositional = cfg.get_explanation_config() 
         config_compositional['counter_variant'] = FLAGS.counter_variant
         config_compositional['diff_threshold'] = FLAGS.diff_threshold
+        config_compositional['block_type_3'] = FLAGS.block_type_3 if beam_variant == 'compound' else True
         compo_exp = utils.compute_compositional_explanations(
             model, masks, masks_info, disjoint_info, layer_activations, selected_units, 
             segmentor_experiment_config, config_compositional,

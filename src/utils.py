@@ -360,6 +360,7 @@ def compute_compositional_explanations(model,masks, masks_info, disjoint_info, a
     results_dir = config_experiment['results_dir']
     beam_limit = config_compositional['beam_limit']
     heuristic = config_compositional['heuristic']
+    block_type_3 = config_compositional.get('block_type_3', True)
     results = []
     counter_variant = config_compositional['counter_variant']
     diff_threshold = config_compositional['diff_threshold']
@@ -372,7 +373,7 @@ def compute_compositional_explanations(model,masks, masks_info, disjoint_info, a
 
     # How many samples to consider for the application metric
     topk= 20
-    alpha = 0.01
+
     # Counters
     units_covered = 0
     units_analyzed = 0
@@ -381,9 +382,12 @@ def compute_compositional_explanations(model,masks, masks_info, disjoint_info, a
             ):
         units_analyzed += 1
         is_covered = False
-        if first_n_interpretable_units is not None and units_covered >= first_n_interpretable_units:
-            print(f"Reached the limit of first {first_n_interpretable_units} interpretable units, stopping the computation of explanations for the remaining units.")
-            break
+        if first_n_interpretable_units is not None:
+            if units_covered >= first_n_interpretable_units:
+                print(f"Reached the limit of first {first_n_interpretable_units} interpretable units, stopping the computation of explanations for the remaining units.")
+                break
+            else:
+                print(f"Currently covered {units_covered} units out of {first_n_interpretable_units} required interpretable units.")
         if len(activations.shape) == 4:
             unit_activations = activations[:,unit,:,:]
         elif len(activations.shape) == 2:
@@ -418,6 +422,8 @@ def compute_compositional_explanations(model,masks, masks_info, disjoint_info, a
 
         
             dir_current_results = dir_current_results + f'/{beam_variant}_beam'
+            if not block_type_3:
+                dir_current_results = dir_current_results + '/unblock_type_3'
             if not os.path.exists(dir_current_results):
                 os.makedirs(dir_current_results)
             file_algo_results = (
@@ -440,73 +446,14 @@ def compute_compositional_explanations(model,masks, masks_info, disjoint_info, a
             bitmaps = bitmaps.to(device)
             non_zero_bitmaps = bitmaps.sum()
             top_k_samples = min(topk, non_zero_bitmaps.item())
-            print(f"Unit {unit} cluster {cluster_index} with activation range {activation_range} has {non_zero_bitmaps} activations. Quantile: {quantile}")
-            # (1187 OR 1745)
-            # label_1 = F.Or(F.And(F.Leaf(38), F.Leaf(2061)), F.Leaf(3519))
-            # label_2 = F.Or(F.And(F.Leaf(38), F.Leaf(2061)), F.Leaf(3967))
-            # mask_label_1 = mask_utils.parse_mask_by_type(mask_utils.get_formula_mask(
-            #         label_1, masks)).to(bitmaps.device)
-            # mask_label_2 = mask_utils.parse_mask_by_type(mask_utils.get_formula_mask(
-            #         label_2, masks)).to(bitmaps.device)
-            # print(metrics.iou(mask_label_1, bitmaps).item())
-            # print(metrics.iou(mask_label_2, bitmaps).item())
-            # print(metrics.iou(mask_label_1, mask_label_2).item())
-            # exit()
+            #print(f"Unit {unit} cluster {cluster_index} with activation range {activation_range} has {non_zero_bitmaps} activations. Quantile: {quantile}")
 
-            # label 1 (((38 AND 2061) AND (NOT 5475)) OR 3670):
-            # label 2 (((38 AND 2061) AND (NOT 5470)) OR 3670)
-            # label_1 = F.Or(F.And(F.And(38, 2061), F.Not(5475)), 3670)
-            # mask_label_1 = mask_utils.parse_mask_by_type(mask_utils.get_formula_mask(
-            #         label_1, masks)).to(bitmaps.device)
-            # label_2 = F.Or(F.And(F.And(38, 2061), F.Not(5470)), 3670)
-            # label_3 = F.Or(F.And(38, 2061), 3670)
-            # label_4 = F.Leaf(3670)
-            # label_5 = F.Not(5475)
-            # label_6 = F.Not(5470)
-            # label_7 = F.And(38, 2061)
-            # label_8 = F.And(F.And(38, 2061), F.Not(5475))
-            # label_9 = F.And(F.And(38, 2061), F.Not(5470))
-            # label_10 = F.And(F.And(38, 2061), F.And(F.Not(5470), F.Not(5475)))
-            # mask_label_2 = mask_utils.parse_mask_by_type(mask_utils.get_formula_mask(
-            #         label_2, masks)).to(bitmaps.device)
-            # mask_label_3 = mask_utils.parse_mask_by_type(mask_utils.get_formula_mask(
-            #         label_3, masks)).to(bitmaps.device)
-            # mask_label_4 = mask_utils.parse_mask_by_type(mask_utils.get_formula_mask(
-            #         label_4, masks)).to(bitmaps.device)
-            # mask_label_5 = mask_utils.parse_mask_by_type(mask_utils.get_formula_mask(
-            #         label_5, masks)).to(bitmaps.device)
-            # mask_label_6 = mask_utils.parse_mask_by_type(mask_utils.get_formula_mask(
-            #         label_6, masks)).to(bitmaps.device)
-            # mask_label_7 = mask_utils.parse_mask_by_type(mask_utils.get_formula_mask(
-            #         label_7, masks)).to(bitmaps.device)
-            # mask_label_8 = mask_utils.parse_mask_by_type(mask_utils.get_formula_mask(
-            #         label_8, masks)).to(bitmaps.device)
-            # mask_label_9 = mask_utils.parse_mask_by_type(mask_utils.get_formula_mask(
-            #         label_9, masks)).to(bitmaps.device)
-            # mask_label_10 = mask_utils.parse_mask_by_type(mask_utils.get_formula_mask(
-            #         label_10, masks)).to(bitmaps.device)
-            # print(metrics.iou(mask_label_1, bitmaps).item())
-            # print(metrics.iou(mask_label_2, bitmaps).item())
-            # print(metrics.iou(mask_label_3, bitmaps).item())
-            # print(metrics.iou(mask_label_4, bitmaps).item())
-            # print(metrics.iou(mask_label_5, bitmaps).item())
-            # print(metrics.iou(mask_label_6, bitmaps).item())
-            # print(metrics.iou(mask_label_7, bitmaps).item())
-            # print(metrics.iou(mask_label_8, bitmaps).item())
-            # print(metrics.iou(mask_label_9, bitmaps).item())
-            # print(metrics.iou(mask_label_1, mask_label_2).item())
-            # print(metrics.iou(mask_label_5, mask_label_6).item())
-            # print(metrics.iou(mask_label_8, mask_label_9).item())
-            # print(metrics.iou(mask_label_9, mask_label_10).item())
-            # exit()
 
             if not os.path.exists(file_algo_results):
                 if quantile is None and bitmaps.sum() < 500:
                     if verbose:
                         print(f"Mu setup for NLI. Too few activations for unit {unit} cluster {cluster_index} with range {activation_range}. Only {bitmaps.sum()} activations found. Please consider changing the number of clusters or checking the activation ranges.")
                     continue
-                if verbose:
-                    print("Computing explanation for unit %d using beam variant %s " % (unit, beam_variant))
                 if not is_covered:
                     is_covered = True
                     units_covered += 1
@@ -532,7 +479,8 @@ def compute_compositional_explanations(model,masks, masks_info, disjoint_info, a
                     beam_variant=beam_variant,
                     constraints=constraints,
                     counter_variant=counter_variant,
-                    diff_threshold=diff_threshold
+                    diff_threshold=diff_threshold,
+                    block_type_3=block_type_3
                 )
                 end_time = timer()
                 time_taken = end_time - start_time
@@ -649,7 +597,7 @@ def compute_compositional_explanations(model,masks, masks_info, disjoint_info, a
                         # + f"Default Explanation String: {string_random_label} - "
                             + f"Number Labels: {best_label} - "
                         # + f'Default Explanation: {random_label} - '
-                        + f"Best IoU: {round(best_iou,4)} - "
+                        + f"Best IoU: {round(best_iou,5)} - "
                         # + f"Vanilla IoU: {round(best_iou,4)} - "
                         #+ f"Weighted IoU: {round(counter_iou,4)} - "
                         + f"Diff IoU: {round(metrics_values['diff_adv_iou'],4)} - "
@@ -669,340 +617,34 @@ def compute_compositional_explanations(model,masks, masks_info, disjoint_info, a
 
 
 
-def iterative_clustering(model,masks, masks_info, disjoint_info, activations, units, config_experiment, config_compositional, *, interpolation_mode='bilinear', quantile=None, beam_variant=None, verbose=True, constraints=None, dataset=None):
+
+
+
+def load_compositional_explanations(beam_variant, activations, units, config_experiment, config_compositional, verbose=True):
     num_clusters = config_compositional['num_clusters']
-    mask_shape = config_experiment['mask_shape']
     length = config_compositional['length']
     layer_name = config_compositional['layer_name']
-    device = config_experiment['device']
+    quantile = config_compositional['quantile']
     results_dir = config_experiment['results_dir']
     beam_limit = config_compositional['beam_limit']
     heuristic = config_compositional['heuristic']
-    results = []
-    counter_variant = config_compositional['counter_variant']
-    avg_diff = []
-    avg_apply = []
-    avg_iou = []
-    covered = 0
-    num_clusters = 2
-    length = 1
-    for unit in tqdm(
-                units, desc="Computing Compostional explanations per unit"
-            ):
-        if len(activations.shape) == 4:
-            unit_activations = activations[:,unit,:,:]
-        elif len(activations.shape) == 2:
-            unit_activations = activations[:,unit]
-        else:
-            raise ValueError(f"Activations shape {activations.shape} not supported")
-
-        # Filter out extreme cases where there are too few activations
-        nonzero_activations = torch.count_nonzero(unit_activations)
-
-        if num_clusters == 1 and nonzero_activations < len(unit_activations)*C.NETDISSECT_QUANTILE:
-            print(f"Unit {unit} has very few activations ({nonzero_activations}), skipping. Compositional Limit.")
-            continue
-       
-        # Compute activation range to be kept in the masks
-        clusters_to_decompose = [(-float('inf'), float('inf'))]
-        clusters_to_keep = []
-        while len(clusters_to_decompose) > 0:
-            print()
-            print("Summary so far: ")
-            print(f"Unit {unit} - Clusters to decompose: {clusters_to_decompose} ({len(clusters_to_decompose)} clusters) - Clusters to keep: {clusters_to_keep} ({len(clusters_to_keep)} clusters) - Average Diff IoU: {round(sum(avg_diff)/len(avg_diff),4) if len(avg_diff) > 0 else 'N/A'}")
-            print()
-
-            # Collect clusters to parse
-            clusters_to_parse = []
-            for lower_bound, upper_bound in clusters_to_decompose:
-                filtered_activations = torch.where((unit_activations >= lower_bound) & (unit_activations <= upper_bound), unit_activations, torch.tensor(0.0).to(unit_activations.device))
-                cluster_boundaries = activation_utils.compute_activation_ranges(
-                     filtered_activations, 2, quantile=quantile)   
-                print(f"Decomposing cluster ({lower_bound}, {upper_bound}) into subclusters: {cluster_boundaries}")
-                clusters_to_parse.extend(cluster_boundaries)
-            
-            # Parse clusters
-            clusters_to_decompose = []
-            for cluster_index, activation_range in enumerate(
-                        sorted(clusters_to_parse)
-                    ):
-                print(f"Unit: {unit} - Activation Range: {activation_range}")
-                # Compute binary masks
-                if unit_activations.shape != masks[1].shape:
-                    bitmaps = activation_utils.compute_bitmaps(
-                        unit_activations,
-                        activation_range,
-                        mask_shape=mask_shape,
-                    )
-                else:
-                    bitmaps = torch.where(
-                        (unit_activations > activation_range[0]) & (unit_activations < activation_range[1]), 
-                        True, False)
-                
-
-
-                bitmaps = bitmaps.to(device)
-
-
-                    
-                start_time = timer()
-                (
-                    best_label,
-                    best_iou,
-                    visited,
-                    expanded,
-                    estimated
-                ) = algorithms.get_heuristic_scores(
-                    masks,
-                    bitmaps,
-                    segmentations_info=masks_info,
-                    disjoint_info=disjoint_info,
-                    heuristic=heuristic,
-                    length=length,
-                    beam_size=beam_limit,
-                    max_size_mask=mask_shape[0]*mask_shape[1],
-                    mask_shape=mask_shape,
-                    device=device,
-                    labels=config_experiment['segmentor_labels'],
-                    beam_variant=beam_variant,
-                    constraints=constraints,
-                    counter_variant=counter_variant
-                )
-                end_time = timer()
-
-
-                time_taken = end_time - start_time
-                string_label = F.get_formula_str(best_label, config_experiment['segmentor_labels'])
-
-
-                vanilla_iou = best_iou
-                # # Compute Counter Iou
-                formula_mask = mask_utils.parse_mask_by_type(mask_utils.get_formula_mask(
-                        best_label, masks)).to(bitmaps.device)
-                adv_iou = metrics.iou(formula_mask, ~bitmaps).item()
-                diff = max(vanilla_iou - adv_iou, 0)
-                # normalize diff in a way that if vanilla_iou and adv_iou are small and their difference is small is comparable to a bigger difference but with vanilla_iou and adv_iou larger. Basically, we want to express the difference in percentage and independently from the size of iou
-                diff = diff / (vanilla_iou + 1e-5)
-                avg_diff.append(diff)
-                avg_iou.append(vanilla_iou)
-
-
-                print(
-                        f"Unit: {unit} - "
-                        + f"Cluster: {cluster_index} - "
-                        + f"Activation Range: {activation_range} - "
-                        + f"Best Label: {string_label} - "
-                        + f"Number Labels: {best_label} - "
-                    + f"Vanilla IoU: {round(vanilla_iou,4)} - "
-                    + f"Adversarial IoU: {round(adv_iou,4)} - "
-                    + f"Diff IoU: {round(diff,4)}"
-                        )
-                print(f"Average Diff IoU so far: {round(sum(avg_diff)/len(avg_diff),4)} - Covered Units: {covered}/{len(units)} - Average IoU: {round(sum(avg_iou)/len(avg_iou),4)}")
-                
-                # Decide whether to decompose further or keep the cluster as it is based on the diff between vanilla_iou and adv_iou. If the diff is small, it means that the explanation is not very specific to the cluster and we can try to decompose it further. If the diff is large, it means that the explanation is specific to the cluster and we can keep it as it is. 
-                if diff < 0.9:
-                    clusters_to_decompose.append(activation_range)
-                    print(f"\tCluster {activation_range} is not specific enough (Diff IoU: {round(diff,4)}), decomposing further.")
-                else:
-                    clusters_to_keep.append(activation_range)
-                    print(f"\tCluster {activation_range} is specific enough (Diff IoU: {round(diff,4)}), keeping it as it is.")
-            
-    exit()
-    return results
-
-def compute_random_explanations(model,masks, masks_info, disjoint_info, activations, units, config_experiment, config_compositional, *, interpolation_mode='bilinear', beam_variant=None, verbose=True, constraints=None, dataset=None):
-    num_clusters = config_compositional['num_clusters']
-    mask_shape = config_experiment['mask_shape']
-    length = config_compositional['length']
-    layer_name = config_compositional['layer_name']
-    device = config_experiment['device']
-    results_dir = config_experiment['results_dir']
-    beam_limit = config_compositional['beam_limit']
-    heuristic = config_compositional['heuristic']
-    results = []
-    counter_variant = config_compositional['counter_variant']
-    for unit in tqdm(
-                units, desc="Computing Compostional explanations per unit"
-            ):
-        if len(activations.shape) == 4:
-            unit_activations = activations[:,unit,:,:]
-        elif len(activations.shape) == 2:
-            unit_activations = activations[:,unit]
-        else:
-            raise ValueError(f"Activations shape {activations.shape} not supported")
-
-        # Filter out extreme cases where there are too few activations
-        nonzero_activations = torch.count_nonzero(unit_activations)
-        if nonzero_activations < num_clusters:
-            print(f"Unit {unit} cluster {cluster_index} has very few activations ({nonzero_activations}), skipping. Please consider changing the number of clusters or checking the activation ranges.")
-            continue
-        # Compute activation range to be kept in the masks
-        activation_ranges = activation_utils.compute_activation_ranges(
-            unit_activations, num_clusters)
-        for cluster_index, activation_range in enumerate(
-                    sorted(activation_ranges)
-                ):
-            beam_dir = 'optimal' if heuristic == 'optimal' else beam_limit
-            dir_current_results = (
-                f"{results_dir}/{beam_dir}/length_{length}/"
-                + f"{layer_name}/{unit}/{activation_range}"
-            )
-            if beam_variant == 'old':
-                dir_current_results = dir_current_results + '/old_beam'
-            elif beam_variant == 'new':
-                dir_current_results = dir_current_results + '/new_beam'
-            elif beam_variant is None:
-                dir_current_results = dir_current_results + '/baseline'
-            if counter_variant:
-                dir_current_results = dir_current_results + '/counter_variant'
-            if not os.path.exists(dir_current_results):
-                os.makedirs(dir_current_results)
-            file_algo_results = (
-                f"{dir_current_results}/random/" + f"{length}.pickle"
-            )
-
-
-
-            # Compute binary masks
-            if unit_activations.shape != masks[1].shape:
-                bitmaps = activation_utils.compute_bitmaps(
-                    unit_activations,
-                    activation_range,
-                    mask_shape=mask_shape,
-                )
-            else:
-                #print("Activations already in the right shape, no need to upsample")
-                bitmaps = torch.where(
-                    (unit_activations > activation_range[0]) & (unit_activations < activation_range[1]), 
-                    True, False)
-
-
-            bitmaps = bitmaps.to(device)
-            if not os.path.exists(file_algo_results):
-
-                bitmaps_perc = bitmaps.sum()/bitmaps.numel()
-                random_bitmaps = torch.bernoulli(torch.full(bitmaps.shape, bitmaps_perc)).bool().to(device)
-
-                if dataset is not None and bitmaps.sum() < 500:
-                    #print(f"Too few activations for unit {unit} cluster {cluster_index} with range {activation_range}. Only {bitmaps.sum()} activations found. Please consider changing the number of clusters or checking the activation ranges.")
-                    continue
-                start_time = timer()
-                (
-                    best_label,
-                    best_iou,
-                    visited,
-                    expanded,
-                    estimated
-                ) = algorithms.get_heuristic_scores(
-                    masks,
-                    random_bitmaps,
-                    segmentations_info=masks_info,
-                    disjoint_info=disjoint_info,
-                    heuristic=heuristic,
-                    length=length,
-                    beam_size=beam_limit,
-                    max_size_mask=mask_shape[0]*mask_shape[1],
-                    mask_shape=mask_shape,
-                    device=device,
-                    labels=config_experiment['segmentor_labels'],
-                    beam_variant=beam_variant,
-                    constraints=constraints,
-                    counter_variant=counter_variant
-                )
-                end_time = timer()
-
-
-
-                time_taken = end_time - start_time
-                string_label = F.get_formula_str(best_label, config_experiment['segmentor_labels'])
-                with open(file_algo_results, "wb") as file:
-                    pickle.dump((best_label, string_label, best_iou, visited, expanded, estimated, time_taken), file)
-            else:
-                with open(file_algo_results, "rb") as file:
-                    loaded_info = pickle.load(file)
-                    if len(loaded_info) == 7:
-                        best_label, string_label, best_iou, visited, expanded, estimated, time_taken = loaded_info
-                    elif len(loaded_info) == 6:
-                        best_label, string_label, best_iou, visited, expanded, estimated = loaded_info
-                        time_taken = -1
-                    elif len(loaded_info) == 5:
-                        best_label, string_label, best_iou, visited, expanded = loaded_info
-                        estimated = -1
-                        time_taken = -1
-
-                if string_label != F.get_formula_str(best_label, config_experiment['segmentor_labels']):
-                    raise ValueError(f"The mapping used during the computation of explanation is different from the one used during the collection. String label does not match the formula {string_label} - {F.get_formula_str(best_label, config_experiment['segmentor_labels'])}")
-
-            if best_label is None:
-                if verbose:
-                    print(
-                            f"Unit: {unit} - "
-                            + f"Cluster: {cluster_index} - "
-                            + f"No valid explanation found. Best IoU is 0. "
-                            )
-                continue
-            
-            if verbose:
-                if best_iou == 0:
-                    print(
-                            f"Unit: {unit} - "
-                            + f"Cluster: {cluster_index} - "
-                            + f"No valid explanation found. Best IoU is 0. "
-                            )
-                elif best_iou < 0.04:
-                    print(
-                            f"Unit: {unit} - "
-                            + f"Cluster: {cluster_index} - "
-                            + f"Explanation found but NON-INTERPETABLE because Iou ({round(best_iou,4)}). "
-                            + f"Best Label: {string_label} - "
-                        )
-                else:
-                    print(
-                            f"Unit: {unit} - "
-                            + f"Cluster: {cluster_index} - "
-                            + f"Best Label: {string_label} - "
-                        # + f"Is Default Explanation: {is_default_expl} - "
-                        # + f"Default Explanation String: {string_random_label} - "
-                            + f"Number Labels: {best_label} - "
-                        # + f'Default Explanation: {random_label} - '
-                        # + f"Best IoU: {round(best_iou,4)} - "
-                            + f"Vanilla IoU: {round(best_iou,4)} - "
-                            #+ f"Visited: {visited} - "
-                            #+ f"Expanded: {expanded} - "
-                            #+ f"Estimated: {estimated}"
-                            #+ f" - Time: {time_taken:.2f} seconds \n"
-                            )
-            
-            
-            results.append((unit, cluster_index, activation_range, best_label, string_label, best_iou, visited, expanded, estimated, time_taken))
-    exit()
-    return results
-
-
-
-def load_compositional_explanations(masks, masks_info, disjoint_info, activations, units, config_experiment, config_compositional, verbose=True, beam_variant=None):
-    num_clusters = config_compositional['num_clusters']
-    mask_shape = config_experiment['mask_shape']
-    length = config_compositional['length']
-    layer_name = config_compositional['layer_name']
-    device = config_experiment['device']
-    results_dir = config_experiment['results_dir']
-    beam_limit = config_compositional['beam_limit']
-    heuristic = config_compositional['heuristic']
-    counter_variant = config_compositional['counter_variant']
+    block_type_3 = config_compositional.get('block_type_3', True)
     results = []
     for unit in tqdm(
                 units, desc="Loading Compostional explanations per unit"
             ):
-        unit_activations = activations[:,unit,:,:]
+        if len(activations.shape) == 4:
+            unit_activations = activations[:,unit,:,:]
+        elif len(activations.shape) == 2:
+            unit_activations = activations[:,unit]
+        else:
+            raise ValueError(f"Activations shape {activations.shape} not supported")
 
         if unit_activations.sum() == 0:
-            print(f"Unit {unit} has no activation, skipping")
             for cluster_index in range(num_clusters):
                 results.append((unit, cluster_index, None, None, None, None, None, None, None, None))
             continue
         if torch.count_nonzero(unit_activations) < num_clusters:
-            print(f"Unit {unit} has very few activations ({torch.count_nonzero(unit_activations)}), skipping")
             for cluster_index in range(num_clusters):
                 results.append((unit, cluster_index, None, None, None, None, None, None, None, None))
             continue
@@ -1013,55 +655,36 @@ def load_compositional_explanations(masks, masks_info, disjoint_info, activation
         for cluster_index, activation_range in enumerate(
                     sorted(activation_ranges)
                 ):
-
-
-
             beam_dir = 'optimal' if heuristic == 'optimal' else beam_limit
-            dir_current_results = (
+            if num_clusters == 0:
+                dir_current_results = (
+                    f"{results_dir}/{beam_dir}/length_{length}/"
+                    + f"{layer_name}/{unit}/{activation_range}"
+                )
+            else:
+                dir_current_results = (
                 f"{results_dir}/{beam_dir}/length_{length}/"
-                + f"{layer_name}/{unit}/{activation_range}"
+                + f"{layer_name}/{unit}/quant_{quantile}/{activation_range}"
             )
-            if beam_variant == 'old':
-                dir_current_results = dir_current_results + '/old_beam'
-            elif beam_variant == 'new':
-                dir_current_results = dir_current_results + '/new_beam'
-            elif beam_variant is None:
-                dir_current_results = dir_current_results + '/baseline'
-            if counter_variant:
-                dir_current_results = dir_current_results + '/counter_variant'
-            # dir_before = f"{results_dir}/{beam_dir}/length_{length}/"+ f"{layer_name}/{unit}/"
-            # if os.path.exists(dir_before):
-            #     all_dirs = os.listdir(dir_before)
-            # else:
-            #     all_dirs = []
-            # if len(all_dirs) == 1:
-            #     dir_current_results = f"{dir_before}/{all_dirs[0]}"
-            #     file_algo_results = (
-            #         f"{dir_current_results}/" + f"{length}.pickle"
-            #     )
-            #     print(f"Only one directory found, using {file_algo_results}")
-            # else:
+
+        
+            dir_current_results = dir_current_results + f'/{beam_variant}_beam'
+            if not block_type_3:
+                dir_current_results = dir_current_results + '/unblock_type_3'
+            if not os.path.exists(dir_current_results):
+                os.makedirs(dir_current_results)
             file_algo_results = (
                 f"{dir_current_results}/" + f"{length}.pickle"
             )
+
+
             if not os.path.exists(file_algo_results):
-                print(f"File {file_algo_results} does not exist. You need to run the clustering script first.")
                 best_label, string_label, best_iou, visited, expanded, estimated, time_taken = None, None, None, None, None, None, None
             else:
                 with open(file_algo_results, "rb") as file:
                     loaded_info = pickle.load(file)
-                    if len(loaded_info) == 7:
-                        best_label, string_label, best_iou, visited, expanded, estimated, time_taken = loaded_info
-                    elif len(loaded_info) == 6:
-                        best_label, string_label, best_iou, visited, expanded, estimated = loaded_info
-                        time_taken = -1
-                    elif len(loaded_info) == 5:
-                        best_label, string_label, best_iou, visited, expanded = loaded_info
-                        estimated = -1
-                        time_taken = -1
+                    best_label, string_label, best_iou, visited, expanded, estimated, time_taken = loaded_info
                     best_iou = round(best_iou, 8) # To avoid problems with float precision between torch and numpy
-                if string_label != F.get_formula_str(best_label, config_experiment['segmentor_labels']):
-                    raise ValueError(f"The mapping used during the computation of explanation is different from the one used during the collection. String label does not match the formula {string_label} - {F.get_formula_str(best_label, config_experiment['segmentor_labels'])}")
 
             if verbose:
                 print(
@@ -1078,6 +701,105 @@ def load_compositional_explanations(masks, masks_info, disjoint_info, activation
 
             results.append((unit, cluster_index, activation_range, best_label, string_label, best_iou, visited, expanded, estimated, time_taken))
     return results
+
+# def load_compositional_explanations(masks, masks_info, disjoint_info, activations, units, config_experiment, config_compositional, verbose=True, beam_variant=None):
+#     num_clusters = config_compositional['num_clusters']
+#     mask_shape = config_experiment['mask_shape']
+#     length = config_compositional['length']
+#     layer_name = config_compositional['layer_name']
+#     device = config_experiment['device']
+#     results_dir = config_experiment['results_dir']
+#     beam_limit = config_compositional['beam_limit']
+#     heuristic = config_compositional['heuristic']
+#     counter_variant = config_compositional['counter_variant']
+#     results = []
+#     for unit in tqdm(
+#                 units, desc="Loading Compostional explanations per unit"
+#             ):
+#         unit_activations = activations[:,unit,:,:]
+
+#         if unit_activations.sum() == 0:
+#             print(f"Unit {unit} has no activation, skipping")
+#             for cluster_index in range(num_clusters):
+#                 results.append((unit, cluster_index, None, None, None, None, None, None, None, None))
+#             continue
+#         if torch.count_nonzero(unit_activations) < num_clusters:
+#             print(f"Unit {unit} has very few activations ({torch.count_nonzero(unit_activations)}), skipping")
+#             for cluster_index in range(num_clusters):
+#                 results.append((unit, cluster_index, None, None, None, None, None, None, None, None))
+#             continue
+
+#         # Compute activation range to be kept in the masks
+#         activation_ranges = activation_utils.compute_activation_ranges(
+#             unit_activations, num_clusters)
+#         for cluster_index, activation_range in enumerate(
+#                     sorted(activation_ranges)
+#                 ):
+
+
+
+#             beam_dir = 'optimal' if heuristic == 'optimal' else beam_limit
+#             dir_current_results = (
+#                 f"{results_dir}/{beam_dir}/length_{length}/"
+#                 + f"{layer_name}/{unit}/{activation_range}"
+#             )
+#             if beam_variant == 'old':
+#                 dir_current_results = dir_current_results + '/old_beam'
+#             elif beam_variant == 'new':
+#                 dir_current_results = dir_current_results + '/new_beam'
+#             elif beam_variant is None:
+#                 dir_current_results = dir_current_results + '/baseline'
+#             if counter_variant:
+#                 dir_current_results = dir_current_results + '/counter_variant'
+#             # dir_before = f"{results_dir}/{beam_dir}/length_{length}/"+ f"{layer_name}/{unit}/"
+#             # if os.path.exists(dir_before):
+#             #     all_dirs = os.listdir(dir_before)
+#             # else:
+#             #     all_dirs = []
+#             # if len(all_dirs) == 1:
+#             #     dir_current_results = f"{dir_before}/{all_dirs[0]}"
+#             #     file_algo_results = (
+#             #         f"{dir_current_results}/" + f"{length}.pickle"
+#             #     )
+#             #     print(f"Only one directory found, using {file_algo_results}")
+#             # else:
+#             file_algo_results = (
+#                 f"{dir_current_results}/" + f"{length}.pickle"
+#             )
+#             if not os.path.exists(file_algo_results):
+#                 print(f"File {file_algo_results} does not exist. You need to run the clustering script first.")
+#                 best_label, string_label, best_iou, visited, expanded, estimated, time_taken = None, None, None, None, None, None, None
+#             else:
+#                 with open(file_algo_results, "rb") as file:
+#                     loaded_info = pickle.load(file)
+#                     if len(loaded_info) == 7:
+#                         best_label, string_label, best_iou, visited, expanded, estimated, time_taken = loaded_info
+#                     elif len(loaded_info) == 6:
+#                         best_label, string_label, best_iou, visited, expanded, estimated = loaded_info
+#                         time_taken = -1
+#                     elif len(loaded_info) == 5:
+#                         best_label, string_label, best_iou, visited, expanded = loaded_info
+#                         estimated = -1
+#                         time_taken = -1
+#                     best_iou = round(best_iou, 8) # To avoid problems with float precision between torch and numpy
+#                 if string_label != F.get_formula_str(best_label, config_experiment['segmentor_labels']):
+#                     raise ValueError(f"The mapping used during the computation of explanation is different from the one used during the collection. String label does not match the formula {string_label} - {F.get_formula_str(best_label, config_experiment['segmentor_labels'])}")
+
+#             if verbose:
+#                 print(
+#                         f"Unit: {unit} - "
+#                         + f"Cluster: {cluster_index} - "
+#                         + f"Best Label: {string_label} - "
+#                         + f"Number Labels: {best_label} - "
+#                         + f"Best IoU: {round(best_iou,4)} - "
+#                         + f"Visited: {visited} - "
+#                         + f"Expanded: {expanded} - "
+#                         + f"Estimated: {estimated}"
+#                         + f" - Time: {time_taken:.2f} seconds"
+#                         )
+
+#             results.append((unit, cluster_index, activation_range, best_label, string_label, best_iou, visited, expanded, estimated, time_taken))
+#     return results
 
 def collect_compositional_explanations(activations, units, config_experiment, config_compositional):
     num_clusters = config_compositional['num_clusters']

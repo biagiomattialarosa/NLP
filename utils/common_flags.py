@@ -81,6 +81,9 @@ absl.flags.DEFINE_integer("first_n_interpretable_units", None, "number of first 
 
 absl.flags.DEFINE_string("beam_variant", None, "beam variant to use [old, new]")
 absl.flags.DEFINE_float("quantile", None, "quantile to use for activation range")
+absl.flags.DEFINE_string("neighbors_type", None, "Type of neighbors to use for the beam search [old, baseline, none]")
+absl.flags.DEFINE_list("features", ['tokens', 'tags', 'overlap'], "Features to use for the beam search, separated by comma. Options: concepts, neighbors")
+absl.flags.DEFINE_boolean("block_type_3", True, "Whether to block type 3 explanations in the beam search")
 
 absl.flags.DEFINE_boolean("verbose", False, "whether to print the top activated samples for each unit")
 

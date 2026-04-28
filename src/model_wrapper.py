@@ -218,17 +218,14 @@ class NLPModelWrapper(ModelWrapper):
             if neighbors is None:
                 return tok_feats, tok_feats_vocab, None
             elif neighbors == 'old':
-                tok_tot_feats, tok_tot_feats_vocab = self.dataset.add_old_neighbors_feat(tok_feats_vocab, tok_feats)
-                constraints = None
+                tok_tot_feats, tok_tot_feats_vocab, constraints = self.dataset.add_old_neighbors_feat(tok_feats_vocab, tok_feats)
             elif neighbors == 'baseline':
                 vecpath = 'data/datasets/snli_1.0/snli_1.0_dev.vec'
-                tok_tot_feats, tok_tot_feats_vocab, _ = self.dataset.add_neighbors_feat(tok_feats_vocab, tok_feats, vecpath)
-                constraints = None
+                tok_tot_feats, tok_tot_feats_vocab, constraints = self.dataset.add_neighbors_feat(tok_feats_vocab, tok_feats, vecpath)
             elif neighbors == 'new':
                 #vecpath = 'data/datasets/snli_1.0/snli_1.0_devMIO.vec'
                 vecpath = 'data/datasets/snli_1.0/snli_1.0_dev.vec'
                 tok_tot_feats, tok_tot_feats_vocab, constraints = self.dataset.add_neighbors_feat(tok_feats_vocab, tok_feats, vecpath)
-                constraints = None
             elif neighbors == 'tokens':
                 exit()
                 vecpath = 'data/datasets/snli_1.0/snli_1.0_dev.vec'
