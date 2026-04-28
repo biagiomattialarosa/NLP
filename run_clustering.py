@@ -179,6 +179,8 @@ def main(argv):
         config_compositional['counter_variant'] = FLAGS.counter_variant
         config_compositional['diff_threshold'] = FLAGS.diff_threshold
         config_compositional['block_type_3'] = FLAGS.block_type_3 if beam_variant == 'compound' else True
+        if cfg.dataset == 'broden':
+            config_compositional['first_beam_size'] = FLAGS.beam_limit *2 # This is necessary to replicate the settings of La Rosa et al.
         regenerate = FLAGS.regenerate
         compo_exp = utils.compute_compositional_explanations(
             model, masks, masks_info, disjoint_info, layer_activations, selected_units, 

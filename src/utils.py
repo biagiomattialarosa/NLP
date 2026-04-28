@@ -480,7 +480,8 @@ def compute_compositional_explanations(model,masks, masks_info, disjoint_info, a
                     constraints=constraints,
                     counter_variant=counter_variant,
                     diff_threshold=diff_threshold,
-                    block_type_3=block_type_3
+                    block_type_3=block_type_3,
+                    first_beam_size=config_compositional.get('first_beam_size', None)
                 )
                 end_time = timer()
                 time_taken = end_time - start_time

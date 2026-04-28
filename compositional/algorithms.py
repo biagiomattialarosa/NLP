@@ -307,6 +307,7 @@ def get_heuristic_scores(
     counter_variant=False,
     diff_threshold=0.1,
     block_type_3=True,
+    first_beam_size=None,
 ):
     """Compute the heuristic score for each concept in the candidate_concepts
     list for the given bitmaps.
@@ -405,6 +406,7 @@ def get_heuristic_scores(
                 counter_variant=counter_variant,
                 diff_threshold=diff_threshold,
                 block_type_3=block_type_3,
+                first_beam_size=first_beam_size,
             )
             return best_label, best_iou, visited, expanded, estimated
     elif heuristic == "none":

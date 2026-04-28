@@ -57,6 +57,7 @@ def perform_exhaustive_heuristic_search(
     counter_variant=False,
     diff_threshold=0.1,
     block_type_3=True,
+    first_beam_size=None,
 ):
     """Compute the heuristic score for each concept in the candidate_concepts
     list for the given bitmaps.
@@ -91,6 +92,7 @@ def perform_exhaustive_heuristic_search(
                     beam_size=beam_size,
                     length=length,
                     labels=labels,
+                    first_beam_size=first_beam_size
         )
     elif beam_variant == 'new':
         best_label, best_iou, tot_visited, tot_expanded, tot_estimated = counter_beam_search.explore_counter_beam_frontier(
@@ -108,7 +110,8 @@ def perform_exhaustive_heuristic_search(
                         labels=labels,
                         constraints=constraints,
                         counter_variant=counter_variant,
-                        diff_threshold=diff_threshold
+                        diff_threshold=diff_threshold,
+                        first_beam_size=first_beam_size
         )
     elif beam_variant == 'compound':
         best_label, best_iou, tot_visited, tot_expanded, tot_estimated = compound_beam_search.explore_beam_frontier_compound(
@@ -125,7 +128,8 @@ def perform_exhaustive_heuristic_search(
                         length=length,
                         labels=labels,
                         constraints=constraints,
-                        block_type_3=block_type_3
+                        block_type_3=block_type_3,
+                        first_beam_size=first_beam_size
         )
     elif beam_variant == 'baseline':
         best_label, best_iou, tot_visited, tot_expanded, tot_estimated = baseline_explore_beam_frontier(
@@ -142,6 +146,7 @@ def perform_exhaustive_heuristic_search(
                         length=length,
                         labels=labels,
                         constraints=constraints,
+                        first_beam_size=first_beam_size
         )
     else:
         raise ValueError(f"Unknown beam variant {beam_variant}")
@@ -240,6 +245,7 @@ def baseline_explore_beam_frontier(
     length=3,
     labels=None,
     constraints=None,
+    first_beam_size=None,
 ):
     """Compute the heuristic score for each concept in the candidate_concepts
     list for the given bitmaps.
@@ -264,7 +270,7 @@ def baseline_explore_beam_frontier(
     iou_atoms = Counter(iou_atoms)
     non_iou_labels =  [lab.val for lab, iou in iou_atoms.items() if iou > 0]
 
-    first_beam_num = min (len(iou_atoms), beam_size)
+    first_beam_num = min (len(iou_atoms), beam_size if first_beam_size is None else first_beam_size)
     beam_atoms = {
         (iou, 'INDIVIDUAL', lab, None): iou
         for lab, iou in iou_atoms.most_common(first_beam_num)

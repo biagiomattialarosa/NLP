@@ -693,6 +693,7 @@ def explore_beam_frontier_compound(
     labels=None,
     constraints=None,
     block_type_3=True,
+    first_beam_size=None
 ):
     """Compute the heuristic score for each concept in the candidate_concepts
     list for the given bitmaps.
@@ -720,7 +721,7 @@ def explore_beam_frontier_compound(
     iou_atoms = Counter(iou_atoms)
     non_iou_labels =  [lab.val for lab, iou in iou_atoms.items() if iou > 0]
 
-    first_beam_num = min (len(iou_atoms), beam_size)
+    first_beam_num = min (len(iou_atoms), beam_size if first_beam_size is None else first_beam_size)
     # added str(lab) instead of None to break equivalence and replicate bug
     beam_atoms = {
         (iou, 'INDIVIDUAL', lab, None): iou
