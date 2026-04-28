@@ -86,52 +86,57 @@ def beam_expand_compound(frontier_node, *, candidate_labels, non_zero_labels, ma
             next_frontier.append(candidate_formula)
             
             # Compound
-            if next_op == "AND" or next_op == "NOT":
-                or_compounds = get_or_compounds(label)
-                # We can search for a specialization of each compound. The OR case would be covered by beam search and history in this case. So we don't cover it here
-                for i, compound in enumerate(or_compounds):
-                    other_compounds_before = or_compounds[:i]
-                    other_compounds_after = or_compounds[i+1:]
-                    # attach the term to this compound and then chain the other compounds to it with the OR
-                    if next_op == "AND":
-                        candidate_compound = F.And(compound, candidate_term)
-                    elif next_op == "NOT":
-                        candidate_compound = F.And(compound, F.Not(candidate_term))
-                    else:
-                        raise ValueError(f"Unknown operation {next_op}")
-                    if i == 0:
-                        candidate_formula = candidate_compound
-                    else:
-                        candidate_formula = other_compounds_before[0]
-                        for other_compound in other_compounds_before[1:]:
-                            candidate_formula = F.Or(candidate_formula, other_compound)
-                        # Now we chain the candidate compound with the other compounds after
-                        candidate_formula = F.Or(candidate_formula, candidate_compound)
-                    # Finally, we chain the candidate formula with the other compounds after
-                    for other_compound in other_compounds_after:
-                        candidate_formula = F.Or(candidate_formula, other_compound)
-                    next_frontier.append(candidate_formula)
-            elif next_op == "OR":
-                and_compounds = get_and_compounds(label)
-                # We can search for a generalization of each compound. The AND case would be covered by beam search and history in this case. So we don't cover it here
-                for i, compound in enumerate(and_compounds):
-                    other_compounds_before = and_compounds[:i]
-                    other_compounds_after = and_compounds[i+1:]
-                    # attach the term to this compound and then chain the other compounds to it with the AND
-                    candidate_compound = F.Or(compound, candidate_term)
-                    if i == 0:
-                        candidate_formula = candidate_compound
-                    else:
-                        candidate_formula = other_compounds_before[0]
-                        for other_compound in other_compounds_before[1:]:
-                            candidate_formula = F.And(candidate_formula, other_compound)
-                        # Now we chain the candidate compound with the other compounds after
-                        candidate_formula = F.And(candidate_formula, candidate_compound)
-                    # Finally, we chain the candidate formula with the other compounds after
-                    for other_compound in other_compounds_after:
-                        candidate_formula = F.And(candidate_formula, other_compound)
-                    next_frontier.append(candidate_formula)
- 
+            if len(candidate_formula) > 2:
+                if next_op == "AND" or next_op == "NOT":
+                    or_compounds = get_or_compounds(label)
+                    if len(or_compounds) > 1:
+                        # len() == 0 is already covered by incremental
+                        # We can search for a specialization of each compound. The OR case would be covered by beam search and history in this case. So we don't cover it here
+                        for i, compound in enumerate(or_compounds):
+                            other_compounds_before = or_compounds[:i]
+                            other_compounds_after = or_compounds[i+1:]
+                            # attach the term to this compound and then chain the other compounds to it with the OR
+                            if next_op == "AND":
+                                candidate_compound = F.And(compound, candidate_term)
+                            elif next_op == "NOT":
+                                candidate_compound = F.And(compound, F.Not(candidate_term))
+                            else:
+                                raise ValueError(f"Unknown operation {next_op}")
+                            if i == 0:
+                                candidate_formula = candidate_compound
+                            else:
+                                candidate_formula = other_compounds_before[0]
+                                for other_compound in other_compounds_before[1:]:
+                                    candidate_formula = F.Or(candidate_formula, other_compound)
+                                # Now we chain the candidate compound with the other compounds after
+                                candidate_formula = F.Or(candidate_formula, candidate_compound)
+                            # Finally, we chain the candidate formula with the other compounds after
+                            for other_compound in other_compounds_after:
+                                candidate_formula = F.Or(candidate_formula, other_compound)
+                            next_frontier.append(candidate_formula)
+                elif next_op == "OR":
+                    and_compounds = get_and_compounds(label)
+                    if len(and_compounds) > 1:
+                        # len() == 0 is already covered by incremental
+                        # We can search for a generalization of each compound. The AND case would be covered by beam search and history in this case. So we don't cover it here
+                        for i, compound in enumerate(and_compounds):
+                            other_compounds_before = and_compounds[:i]
+                            other_compounds_after = and_compounds[i+1:]
+                            # attach the term to this compound and then chain the other compounds to it with the AND
+                            candidate_compound = F.Or(compound, candidate_term)
+                            if i == 0:
+                                candidate_formula = candidate_compound
+                            else:
+                                candidate_formula = other_compounds_before[0]
+                                for other_compound in other_compounds_before[1:]:
+                                    candidate_formula = F.And(candidate_formula, other_compound)
+                                # Now we chain the candidate compound with the other compounds after
+                                candidate_formula = F.And(candidate_formula, candidate_compound)
+                            # Finally, we chain the candidate formula with the other compounds after
+                            for other_compound in other_compounds_after:
+                                candidate_formula = F.And(candidate_formula, other_compound)
+                            next_frontier.append(candidate_formula)
+    
     return next_frontier
 
 def fail_check_functional_equivalence(mask_formula1, mask_formula2):
@@ -281,8 +286,9 @@ def combine_different_op(left_formula, right_formula):
     left_leaves = left_formula.get_leaves()
     right_leaves = right_formula.get_leaves()
     common_terms = set(left_leaves) & set(right_leaves)
-    if len(common_terms) == 0:
+    if len(common_terms) != 1:
         # No intersection. This case is managed by combine disjoint
+        # Multiple intersection: the formulas are in contradiction, we cannot combine
         return []
     
     # Here, given (a OR b) and (a AND c) I would like to obtain ((a AND c) OR b) by replacing a with its specialization in the first formula
