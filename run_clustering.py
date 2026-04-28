@@ -23,6 +23,7 @@ absl.flags.DEFINE_string("interpolation_mode", "bilinear", "interpolation mode t
 
 absl.flags.DEFINE_boolean("counter_variant", False, "Whether to use the counter variant of the heuristic")
 absl.flags.DEFINE_float("diff_threshold", 0.1, "threshold for the admissibility constraint based on the diff between IoU and counter IoU")
+absl.flags.DEFINE_boolean("regenerate", False, "Whether to regenerate the explanations even if they already exist")
 FLAGS = absl.flags.FLAGS
 
 
@@ -178,6 +179,7 @@ def main(argv):
         config_compositional['counter_variant'] = FLAGS.counter_variant
         config_compositional['diff_threshold'] = FLAGS.diff_threshold
         config_compositional['block_type_3'] = FLAGS.block_type_3 if beam_variant == 'compound' else True
+        regenerate = FLAGS.regenerate
         compo_exp = utils.compute_compositional_explanations(
             model, masks, masks_info, disjoint_info, layer_activations, selected_units, 
             segmentor_experiment_config, config_compositional,
@@ -185,7 +187,7 @@ def main(argv):
             constraints=constraints, 
             dataset=dataset, quantile=quantile, 
             first_n_interpretable_units=FLAGS.first_n_interpretable_units,
-            verbose=FLAGS.verbose)
+            verbose=FLAGS.verbose, regenerate=regenerate)
 
         metrics_summary = metrics.compute_metrics_summary(compo_exp)
         print(f"Metrics Summary for {segmentor_name} - {experiment_name} with neighbors type: {neighbors_type}")

@@ -197,10 +197,29 @@ def apply_distributivity(left_formula, right_formula, op):
     distributed_formula = op(distributed_formula_left, distributed_formula_right)
     return distributed_formula
 
+def is_full_not(formula):
+    formula_ops = formula.get_ops()
+    if "OR" in formula_ops:
+        # We cannot combine if we have OR, since we cannot distribute NOT over OR
+        return False
+    counter_and = formula_ops.count('AND')
+    counter_not = formula_ops.count('NOT')
+    if "AND" in formula_ops and "NOT" in formula_ops:
+        # We should check if it is a full not operator
+        if counter_and == counter_not:
+            # We have a full not operator, we can combine
+            return True
+    return False
+
 def combine_same_exclusive_op(left_formula, right_formula):
     left_op_list = list(set(left_formula.get_ops()))
     right_op_list = list(set(right_formula.get_ops()))
-    if len(left_op_list) != len(right_op_list) or len(left_op_list) != 1:
+    if len(left_op_list) != len(right_op_list):
+        # Different number of operators or not exactly one operator, cannot combine
+        return []
+    left_is_full_not = is_full_not(left_formula)
+    right_is_full_not = is_full_not(right_formula)
+    if not (left_is_full_not and right_is_full_not) and len(left_op_list) != 1:
         # Different number of operators or not exactly one operator, cannot combine
         return []
     left_op = left_op_list[0]
@@ -232,8 +251,11 @@ def combine_same_exclusive_op(left_formula, right_formula):
     for term in vals[1:]:
         combined_formula = op(combined_formula, term)
 
-    # Chain using the opposite operator. Distributivity
-    distributed_formula = apply_distributivity(left_formula, right_formula, op)
+    # Chain using the opposite operator. Distributivity. Can be applied only if we don't have NOT
+    if "NOT" not in left_op_list and "NOT" not in right_op_list:
+        distributed_formula = apply_distributivity(left_formula, right_formula, op)
+    else:
+        distributed_formula = None
 
     # assert not isinstance(distributed_formula, F.Not) # We should not have NOT at this stage, but we can have it in the different terms that are distributed
     if distributed_formula is None:
@@ -552,7 +574,7 @@ def beam_search_functional_aware(
         node = heapq.heappop(search_space)
         e_iou = -node[0]
 
-        if current_beam and len(current_beam) >= beam_limit and e_iou < minimum:
+        if current_beam and len(current_beam) >= beam_limit and e_iou <= minimum:
             break
         
         candidate_formula = node[2]

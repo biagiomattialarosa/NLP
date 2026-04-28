@@ -351,7 +351,7 @@ def p_artifact(explanation_occ, activations_occ, overlap_occ, dataset_size):
     return hypergeom.sf(overlap_occ - 1, dataset_size, explanation_occ, activations_occ)
 
 
-def compute_compositional_explanations(model,masks, masks_info, disjoint_info, activations, units, config_experiment, config_compositional, *, quantile=0.005, beam_variant=None, verbose=False, constraints=None, dataset=None, first_n_interpretable_units=None, ):
+def compute_compositional_explanations(model,masks, masks_info, disjoint_info, activations, units, config_experiment, config_compositional, *, quantile=0.005, beam_variant=None, verbose=False, constraints=None, dataset=None, first_n_interpretable_units=None, regenerate=False ):
     num_clusters = config_compositional['num_clusters']
     mask_shape = config_experiment['mask_shape']
     length = config_compositional['length']
@@ -449,7 +449,7 @@ def compute_compositional_explanations(model,masks, masks_info, disjoint_info, a
             #print(f"Unit {unit} cluster {cluster_index} with activation range {activation_range} has {non_zero_bitmaps} activations. Quantile: {quantile}")
 
 
-            if not os.path.exists(file_algo_results):
+            if regenerate or not os.path.exists(file_algo_results):
                 if quantile is None and bitmaps.sum() < 500:
                     if verbose:
                         print(f"Mu setup for NLI. Too few activations for unit {unit} cluster {cluster_index} with range {activation_range}. Only {bitmaps.sum()} activations found. Please consider changing the number of clusters or checking the activation ranges.")

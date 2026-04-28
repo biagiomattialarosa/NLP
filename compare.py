@@ -95,6 +95,7 @@ def pairwise_compare(name_1, compo_exp_1, name_2, compo_exp_2):
             second_ious_when_diff.append(best_iou_2)
             second_better_diff_ious.append(best_iou_2 - best_iou_1)
         if best_iou_1 == best_iou_2:
+            print(f"Same IoU for unit {unit_1}: label 1: {best_label_1} - label 2: {best_label_2_}")
             same_iou_counter += 1
     print("******************************************************")
     print(f"Comparing {name_1} and {name_2} over {parsed_by_both_counter} units")
