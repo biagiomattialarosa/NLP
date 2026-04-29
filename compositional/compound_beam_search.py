@@ -509,8 +509,12 @@ def manage_logical_equivalence(candidate_label, candidate_mask, candidate_iou, c
                     combinations.extend(combine_formulas(candidate_label, equivalent_label))
             else:
                 # In this case we add both the candidate label and the equivalent label and include also the combinations
-                to_add[candidate_label] = (candidate_iou, candidate_label, candidate_mask)
-                combinations.extend(combine_formulas(candidate_label, equivalent_label))
+                if len(equivalent_label) < len(candidate_label) and equivalent_label == candidate_label.left:
+                    # In this case, the equivalent label comes from the previous beam and it is a specialization of the current candidate. We can add both in the beam because they are not in contradiction and they can be both useful for the next combinations
+                    continue
+                else:
+                    to_add[candidate_label] = (candidate_iou, candidate_label, candidate_mask)
+                    combinations.extend(combine_formulas(candidate_label, equivalent_label))
     if len(to_remove) > 0:
         # Remove from to remove the labels already removed before
         to_remove = set(to_remove) - set(equivalents_removed.get(candidate_iou, []))
